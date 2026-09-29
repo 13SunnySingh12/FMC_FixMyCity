@@ -35,7 +35,7 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 21 | Officer login | Shared auth, role `OFFICER` | Auth tests | [ ] |
+| 21 | Officer login | Shared auth, role `OFFICER` | Auth + officer tests ✓ | [✓] |
 | 22 | Officer dashboard | Assigned complaints, status & priority | E2E | [ ] |
 | 23 | View assigned complaint (image, location, AI analysis) | Detail endpoint with signed URLs | Authorization tests | [ ] |
 | 24 | Update status | ASSIGNED → IN_PROGRESS → RESOLVED | Lifecycle test | [ ] |
@@ -49,12 +49,12 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
 | 29 | Admin dashboard | Frontend admin home | E2E | [ ] |
-| 30 | User (citizen) management | List, activate/deactivate | Integration test | [ ] |
-| 31 | Officer management | Create officer, set department, activate/deactivate | Integration test | [ ] |
-| 32 | Department management | CRUD, delete blocked when in use | Integration test | [ ] |
+| 30 | User (citizen) management | `GET/PATCH /api/admin/users` — paged list, activate/deactivate (immediate) | Integration tests ✓; UI pending | [→] |
+| 31 | Officer management | `POST /api/admin/officers`, department change, activate/deactivate | Integration tests ✓; UI pending | [→] |
+| 32 | Department management | `/api/admin/departments` CRUD, delete blocked when in use | Integration tests ✓; UI pending | [→] |
 | 33 | Complaint management | All complaints, filters, edit category/priority, close, retry AI | Integration test | [ ] |
 | 34 | Complaint assignment | Assign to department or officer | Lifecycle test | [ ] |
-| 35 | Category management | CRUD, delete blocked when in use | Integration test | [ ] |
+| 35 | Category management | `/api/admin/categories` CRUD with department routing | Integration tests ✓; UI pending | [→] |
 | 36 | Basic analytics | Totals, pending, resolved, by category, by priority | Integration test | [ ] |
 
 ## Cross-cutting (FMC architecture & stack)
@@ -88,10 +88,10 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          Departments, categories and admin user/officer management
+Current Step:          Complaint lifecycle with B2 image storage
 Completed:             Foundation; schema on Neon; credentials verified live (Neon, B2 private bucket, Gemini, Groq); authentication
 Manual Action Required: None
-Tests Passed:          Backend 18/18 (schema, constraints, config, auth); auth runtime-verified on Neon
+Tests Passed:          Backend 25/25 (schema, config, auth, admin management); auth runtime-verified on Neon
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
 Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)

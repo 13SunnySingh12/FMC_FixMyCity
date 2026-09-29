@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import com.fixmycity.common.ApiException;
+import com.fixmycity.common.Text;
 import com.fixmycity.user.Role;
 import com.fixmycity.user.User;
 import com.fixmycity.user.UserRepository;
@@ -37,7 +38,7 @@ public class AuthService {
 			throw ApiException.conflict("An account with this email already exists.");
 		}
 		User user = new User(name.strip(), normalizedEmail, hashPassword(password), Role.CITIZEN);
-		user.setPhone(blankToNull(phone));
+		user.setPhone(Text.blankToNull(phone));
 		return UserResponse.from(this.users.save(user));
 	}
 
@@ -66,10 +67,6 @@ public class AuthService {
 			throw ApiException.badRequest("Password must be at most 72 bytes.");
 		}
 		return this.passwordEncoder.encode(password);
-	}
-
-	static String blankToNull(String value) {
-		return (value == null || value.isBlank()) ? null : value.strip();
 	}
 
 }
