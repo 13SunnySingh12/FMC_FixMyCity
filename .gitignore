@@ -1,0 +1,29 @@
+# Secrets — only the template is tracked
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+Backend/target/
+
+# Python
+AI/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Node
+Frontend/node_modules/
+Frontend/dist/
+
+# Generated
+graphify-out/
+*.log
+
+# Editor / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
