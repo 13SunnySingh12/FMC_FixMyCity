@@ -64,7 +64,7 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC), BCrypt, role checks + per-complaint ownership | [ ] |
 | B2 private bucket; backend-only credentials; short-lived signed URLs | AWS SDK v2 S3 client + presigner | [ ] |
 | Spring Boot ↔ FastAPI over REST | `RestClient` + shared internal API key | [ ] |
-| Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend | [ ] |
+| Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — verified on PostgreSQL 18.6 + pgvector via Testcontainers; Neon apply pending credentials | [→] |
 | Long-running AI work survives browser/server restarts | Persistent `ai_status` + background worker with retries and startup recovery | [ ] |
 | Docker, Maven, GitHub Actions CI/CD | Per-service Dockerfiles, Compose, CI workflow | [ ] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
@@ -87,12 +87,11 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          Initial analysis complete; repository foundation next
-Completed Before Stop: Spec analysis, environment/tool audit, Neon inspection, requirement matrix
-Manual Action Required: Credentials (see README "Configuration") — needed before integration verification
-Tests Passed:          —
+Current Step:          Apply schema to Neon and verify (database checkpoint)
+Completed Before Stop: Repository foundation; backend skeleton; Flyway schema + reference data verified locally
+Manual Action Required: DATABASE_URL, B2 bucket + key, GEMINI_API_KEY, GROQ_API_KEY in the root .env
+Tests Passed:          Backend 8/8 (schema, constraints, reference data, DATABASE_URL mapping)
 Tests Failed:          —
-Known Issues:          —
-Git Commit:            —
-Git Push Status:       —
+Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
+Next Step After Confirmation: run migrations against Neon, verify schema with the Neon MCP, continue with authentication
 ```
