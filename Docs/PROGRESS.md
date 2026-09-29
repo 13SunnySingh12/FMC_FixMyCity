@@ -8,7 +8,7 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 1 | Registration & login | Backend `auth` (BCrypt, JWT in httpOnly cookie), Frontend login/register | MockMvc auth tests; browser E2E | [ ] |
+| 1 | Registration & login | Backend `auth` (BCrypt, JWT in httpOnly cookie), Frontend login/register | MockMvc auth tests; runtime check on Neon ✓; browser E2E pending | [→] |
 | 2 | Create complaint (title, description, category, location, image) | `POST /api/complaints` (multipart), `complaints` table | Integration test; E2E | [ ] |
 | 3 | Category selection | `categories` table (seeded), `GET /api/categories` | Integration test | [ ] |
 | 4 | Image upload → B2 `complaints/{complaintId}/{fileName}` | `StorageService` (S3 API), `complaint_attachments` | Real B2 upload + signed-URL fetch | [ ] |
@@ -61,10 +61,10 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | Requirement | Implementation | Status |
 |---|---|---|
-| Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC), BCrypt, role checks + per-complaint ownership | [ ] |
+| Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC) from header or httpOnly cookie, BCrypt, roles reloaded from DB per request, `/api/admin/**` admin-only; per-complaint ownership pending | [→] |
 | B2 private bucket; backend-only credentials; short-lived signed URLs | AWS SDK v2 S3 client + presigner | [ ] |
 | Spring Boot ↔ FastAPI over REST | `RestClient` + shared internal API key | [ ] |
-| Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — verified on PostgreSQL 18.6 + pgvector via Testcontainers; Neon apply pending credentials | [→] |
+| Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
 | Long-running AI work survives browser/server restarts | Persistent `ai_status` + background worker with retries and startup recovery | [ ] |
 | Docker, Maven, GitHub Actions CI/CD | Per-service Dockerfiles, Compose, CI workflow | [ ] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
@@ -83,15 +83,16 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 8. **Frontend stack as specified.** React + JavaScript + CSS (no TypeScript, Tailwind or component kit — FMC doesn't list them).
 9. **Framework conventions win.** `.github/workflows` stays at the repo root; Flyway migrations stay in the backend (it owns the schema for both services).
 10. **Seed reference data.** FMC's six categories are seeded with one matching department each; department names are editable by admins.
+11. **Models (verified live 2026-09-29).** Groq `openai/gpt-oss-120b` for text (strict JSON schema; rated an open manhole HIGH where 20b said MEDIUM). Gemini `gemini-3.5-flash-lite` → `gemini-3.5-flash` ordered fallback for vision and text fallback (other 3.x Flash models returned 503/timeouts under load). `gemini-embedding-2` at 768 dims (auto-normalised). Model ids are configurable because providers retire them.
 
 ## Current state
 
 ```text
-Current Step:          Apply schema to Neon and verify (database checkpoint)
-Completed Before Stop: Repository foundation; backend skeleton; Flyway schema + reference data verified locally
-Manual Action Required: DATABASE_URL, B2 bucket + key, GEMINI_API_KEY, GROQ_API_KEY in the root .env
-Tests Passed:          Backend 8/8 (schema, constraints, reference data, DATABASE_URL mapping)
+Current Step:          Departments, categories and admin user/officer management
+Completed:             Foundation; schema on Neon; credentials verified live (Neon, B2 private bucket, Gemini, Groq); authentication
+Manual Action Required: None
+Tests Passed:          Backend 18/18 (schema, constraints, config, auth); auth runtime-verified on Neon
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
-Next Step After Confirmation: run migrations against Neon, verify schema with the Neon MCP, continue with authentication
+Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)
 ```
