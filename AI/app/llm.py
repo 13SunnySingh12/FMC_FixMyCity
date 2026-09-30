@@ -78,7 +78,7 @@ def _groq_json(model: str, system: str, prompt: str, schema: dict) -> str:
         temperature=0.2,
         max_completion_tokens=2000,
     )
-    return response.choices[0].message.content or ""
+    return (response.choices[0].message.content if response.choices else None) or ""
 
 
 def _gemini_json(model: str, system: str, prompt: str, schema: dict, image: tuple[bytes, str] | None) -> str:

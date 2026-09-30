@@ -66,7 +66,8 @@ def get_pool(request: Request) -> ConnectionPool:
 Pool = Annotated[ConnectionPool, Depends(get_pool)]
 
 
-app = FastAPI(title="FMC AI service", lifespan=lifespan)
+# Internal service: no public API docs (the backend is its only client).
+app = FastAPI(title="FMC AI service", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 api = APIRouter(dependencies=[Depends(require_internal_key)])
 
 

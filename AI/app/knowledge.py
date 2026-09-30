@@ -156,7 +156,10 @@ def search_complaints(
 ) -> list[ComplaintHit]:
     """Meaning-based complaint search within the scope the backend grants (citizen's own, officer's assigned)."""
     vector = vector_literal(llm.embed_query(query))
-    with pool.connection() as conn:
+    with pool.connection() as conn, conn.transaction():
+        # The HNSW index returns its nearest rows before the scope filter applies; keep scanning until enough of
+        # this user's complaints are found (pgvector 0.8+), or a citizen could see nothing at scale.
+        conn.execute("SET LOCAL hnsw.iterative_scan = strict_order")
         rows = conn.execute(
             """SELECT id, 1 - (embedding <=> %(v)s::vector) FROM complaints
                WHERE embedding IS NOT NULL

@@ -1,4 +1,8 @@
+import pytest
+from pydantic import ValidationError
+
 from app import analysis, llm
+from app.config import get_settings
 
 
 def write_request():
@@ -11,6 +15,19 @@ def write_request():
 
 def test_health_is_open(client):
     assert client.get("/health", headers={"X-Internal-Key": ""}).json() == {"status": "ok"}
+
+
+def test_api_docs_are_not_served(client):
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(path).status_code == 404, path
+
+
+def test_service_refuses_to_start_with_a_short_internal_key(monkeypatch):
+    monkeypatch.setenv("AI_SERVICE_API_KEY", "")
+    get_settings.cache_clear()
+    with pytest.raises(ValidationError):
+        get_settings()
+    get_settings.cache_clear()
 
 
 def test_every_ai_endpoint_requires_the_internal_key(client):

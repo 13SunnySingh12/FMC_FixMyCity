@@ -1,8 +1,5 @@
 """Every prompt FMC sends to a model lives here, next to the JSON schema its answer must match."""
 
-# Bump when a prompt's meaning changes, so stored results can be traced to the prompt that produced them.
-PROMPT_VERSION = "2026-09-30"
-
 VISION_SYSTEM = """You inspect a photo attached to a civic complaint for a city's complaint management system.
 Report only what is clearly visible that matters for civic infrastructure: potholes or damaged road surface,
 garbage accumulation or overflowing bins, broken or unlit streetlights, blocked drains or waterlogging,

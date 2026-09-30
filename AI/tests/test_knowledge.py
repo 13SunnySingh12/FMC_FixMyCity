@@ -1,7 +1,7 @@
 import psycopg
 import pytest
 
-from app import knowledge, llm
+from app import db, knowledge, llm
 from app.config import get_settings
 from app.db import vector_literal
 from tests.conftest import fake_vector
@@ -97,34 +97,34 @@ def test_assistant_says_so_when_nothing_relevant_is_retrieved(kb, client, monkey
     assert body == {"answer": knowledge.NOT_COVERED, "grounded": False, "sources": [], "model": None}
 
 
+def _user(conn, role, email):
+    department = "(SELECT min(id) FROM departments)" if role == "OFFICER" else "NULL"
+    return conn.execute(
+        f"INSERT INTO users (name, email, password_hash, role, department_id) VALUES "
+        f"('T', %s, 'x', %s, {department}) RETURNING id",
+        (email, role),
+    ).fetchone()[0]
+
+
+def _complaint(conn, citizen, text, assigned=None):
+    return conn.execute(
+        """INSERT INTO complaints (citizen_id, request_id, title, description, location, category_id, status,
+               assigned_officer_id, embedding) VALUES (%s, gen_random_uuid(), 'T', %s, 'L',
+               (SELECT min(id) FROM categories), %s, %s, %s::vector) RETURNING id""",
+        (citizen, text, "ASSIGNED" if assigned else "SUBMITTED", assigned, vector_literal(fake_vector(text))),
+    ).fetchone()[0]
+
+
 def test_complaint_search_respects_the_scope_given_by_the_backend(client, database_url, monkeypatch):
     monkeypatch.setattr(knowledge, "SEARCH_MIN_SCORE", 0.3)
     with psycopg.connect(database_url, autocommit=True) as conn:
-
-        def user(role, email):
-            department = "(SELECT min(id) FROM departments)" if role == "OFFICER" else "NULL"
-            return conn.execute(
-                f"INSERT INTO users (name, email, password_hash, role, department_id) VALUES "
-                f"('T', %s, 'x', %s, {department}) RETURNING id",
-                (email, role),
-            ).fetchone()[0]
-
         alice, bob, officer = (
-            user("CITIZEN", "alice@test.local"),
-            user("CITIZEN", "bob@test.local"),
-            user("OFFICER", "off@test.local"),
+            _user(conn, "CITIZEN", "alice@test.local"),
+            _user(conn, "CITIZEN", "bob@test.local"),
+            _user(conn, "OFFICER", "off@test.local"),
         )
-
-        def complaint(citizen, text, assigned=None):
-            return conn.execute(
-                """INSERT INTO complaints (citizen_id, request_id, title, description, location, category_id, status,
-                       assigned_officer_id, embedding) VALUES (%s, gen_random_uuid(), 'T', %s, 'L',
-                       (SELECT min(id) FROM categories), %s, %s, %s::vector) RETURNING id""",
-                (citizen, text, "ASSIGNED" if assigned else "SUBMITTED", assigned, vector_literal(fake_vector(text))),
-            ).fetchone()[0]
-
-        alices = complaint(alice, "dark street broken streetlight lamp", assigned=officer)
-        bobs = complaint(bob, "dark street broken streetlight lamp near park")
+        alices = _complaint(conn, alice, "dark street broken streetlight lamp", assigned=officer)
+        bobs = _complaint(conn, bob, "dark street broken streetlight lamp near park")
 
     def ids(**scope):
         response = client.post("/search/complaints", json={"query": "broken streetlight lamp dark street", **scope})
@@ -133,3 +133,25 @@ def test_complaint_search_respects_the_scope_given_by_the_backend(client, databa
     assert ids(citizenId=alice) == {alices}
     assert ids(officerId=officer) == {alices}
     assert {alices, bobs} <= ids()
+
+
+def test_scoped_search_finds_matches_the_index_would_crowd_out(database_url, embeddings, monkeypatch):
+    """On a large table the planner walks the HNSW index, which returns its ~40 nearest rows before the scope
+    filter applies; seqscan and sort are disabled here to force that plan on a small table."""
+    monkeypatch.setattr(knowledge, "SEARCH_MIN_SCORE", 0.3)
+    with psycopg.connect(database_url, autocommit=True) as conn:
+        crowd, target = _user(conn, "CITIZEN", "crowd@test.local"), _user(conn, "CITIZEN", "target@test.local")
+        for i in range(120):
+            # A distinct letters-only tag per row keeps the vectors near the query without making them identical.
+            tag = "".join(chr(ord("a") + int(digit)) for digit in str(i))
+            _complaint(conn, crowd, f"broken streetlight lamp dark street {tag}")
+        mine = _complaint(conn, target, "broken streetlight lamp near the park gate at night")
+
+    separator = "&" if "?" in database_url else "?"
+    pool = db.open_pool(f"{database_url}{separator}options=-c%20enable_seqscan%3Doff%20-c%20enable_sort%3Doff")
+    try:
+        hits = knowledge.search_complaints(pool, "broken streetlight lamp dark street", target, None, 5)
+    finally:
+        pool.close()
+
+    assert [hit.complaint_id for hit in hits] == [mine]
