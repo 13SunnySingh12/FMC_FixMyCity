@@ -23,13 +23,13 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 11–14 | Classification, priority, department, summary | FastAPI `/analyze`: one strict-schema Groq call (Gemini fallback) constrained to real category/department ids | Unit tests ✓; live: citizen chose "Other", AI → Roads/Roads & Public Works, MEDIUM ✓; backend wiring pending | [→] |
-| 15 | Writing assistant | FastAPI `/assist/write` (keeps facts, lists missing details) | Live: rough Hinglish → clear complaint in 0.9s ✓; backend + UI pending | [→] |
-| 16 | Image recognition (B2 image via signed URL) | B2 signed URL (HTTPS, B2 host only) → Gemini vision → findings fed into triage; failures degrade to text-only | Live via real B2 signed URL ✓; backend wiring pending | [→] |
+| 11–14 | Classification, priority, department, summary | FastAPI `/analyze`: one strict-schema Groq call (Gemini fallback) constrained to real category/department ids | Live through the backend: filed as "Other", analysed in the background in 7.4s → Roads / Roads & Public Works, MEDIUM ✓; UI pending | [→] |
+| 15 | Writing assistant | FastAPI `/assist/write` (keeps facts, lists missing details) | Live via `/api/ai/write` (1.2s) ✓; UI pending | [→] |
+| 16 | Image recognition (B2 image via signed URL) | B2 signed URL (HTTPS, B2 host only) → Gemini vision → findings fed into triage; failures degrade to text-only | Live: real B2 photo → "pothole clearly visible" ✓; startup recovery analysed a pre-existing complaint ✓ | [→] |
 | 17 | Embeddings | `gemini-embedding-2`, 768 dims, retrieval prefixes | Live: 42 KB chunks, unit-norm vectors in Neon ✓ | [→] |
 | 18 | Vector database | pgvector on Neon (`vector(768)`, HNSW cosine) | Neon MCP ✓ | [→] |
-| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/complaints` (scope from backend) and `/search/knowledge` | Scope tests ✓; live knowledge search ✓; backend + UI pending | [→] |
-| 20 | RAG civic assistant | FastAPI `/assistant/ask`: live department directory + 7 civic docs; threshold 0.68 calibrated on real data | Live: FMC example questions answered with sources; off-topic → "not covered" without an LLM call ✓; UI pending | [→] |
+| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/complaints` (scope from backend) and `/search/knowledge` | Live via `/api/search/*`: citizen sees only own complaints, admin sees all ✓; UI pending | [→] |
+| 20 | RAG civic assistant | FastAPI `/assistant/ask`: live department directory + 7 civic docs; threshold 0.68 calibrated on real data | Live via `/api/assistant/ask`: grounded reopen guidance with sources ✓; UI pending | [→] |
 
 ## Officer (FMC C.21–C.28)
 
@@ -63,9 +63,9 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 |---|---|---|
 | Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC) from header or httpOnly cookie, BCrypt, roles reloaded from DB per request, `/api/admin/**` admin-only, per-complaint ownership (invisible complaints return 404) | [✓] |
 | B2 private bucket; backend-only credentials; short-lived signed URLs | AWS SDK v2 S3 client + presigner (10-minute URLs, issued only after an access check); uploads removed if the transaction rolls back | [✓] |
-| Spring Boot ↔ FastAPI over REST | `RestClient` + shared internal API key | [ ] |
+| Spring Boot ↔ FastAPI over REST | `RestClient` (HTTP/1.1, separate interactive/background timeouts) + shared internal key | [✓] |
 | Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
-| Long-running AI work survives browser/server restarts | Persistent `ai_status` + background worker with retries and startup recovery | [ ] |
+| Long-running AI work survives browser/server restarts | `ai_status` in the complaint row, atomic claim, ×4 backoff retries, admin retry, startup recovery (verified live) | [✓] |
 | Docker, Maven, GitHub Actions CI/CD | Per-service Dockerfiles, Compose, CI workflow | [ ] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
 
@@ -90,10 +90,10 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          Backend ↔ AI integration (background analysis, assistant, search)
-Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service (live-verified)
+Current Step:          React frontend
+Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration (all live-verified)
 Manual Action Required: None
-Tests Passed:          Backend 34/34; AI service 19/19; auth and full complaint lifecycle runtime-verified on Neon + B2
+Tests Passed:          Backend 43/43 (stable across runs); AI service 19/19; auth and full complaint lifecycle runtime-verified on Neon + B2
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
 Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)

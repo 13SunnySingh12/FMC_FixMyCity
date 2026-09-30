@@ -5,6 +5,7 @@ import java.util.List;
 import com.fixmycity.common.ApiException;
 import com.fixmycity.common.Text;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,9 +35,13 @@ public class DepartmentService {
 
 	private final CategoryRepository categories;
 
-	DepartmentService(DepartmentRepository departments, CategoryRepository categories) {
+	private final ApplicationEventPublisher events;
+
+	DepartmentService(DepartmentRepository departments, CategoryRepository categories,
+			ApplicationEventPublisher events) {
 		this.departments = departments;
 		this.categories = categories;
+		this.events = events;
 	}
 
 	@Transactional(readOnly = true)
@@ -65,6 +70,7 @@ public class DepartmentService {
 		Department department = (id == null) ? new Department(name.strip(), description) : department(id);
 		department.setName(name.strip());
 		department.setDescription(Text.blankToNull(description));
+		this.events.publishEvent(new ReferenceDataChanged());
 		return DepartmentResponse.from(this.departments.save(department));
 	}
 
@@ -78,6 +84,7 @@ public class DepartmentService {
 		category.setName(name.strip());
 		category.setDescription(Text.blankToNull(description));
 		category.setDepartment(department);
+		this.events.publishEvent(new ReferenceDataChanged());
 		return CategoryResponse.from(this.categories.save(category));
 	}
 
@@ -86,6 +93,7 @@ public class DepartmentService {
 		try {
 			this.departments.delete(department(id));
 			this.departments.flush();
+			this.events.publishEvent(new ReferenceDataChanged());
 		}
 		catch (DataIntegrityViolationException ex) {
 			throw ApiException.conflict("This department is still used by categories, officers or complaints.");
@@ -97,6 +105,7 @@ public class DepartmentService {
 		try {
 			this.categories.delete(category(id));
 			this.categories.flush();
+			this.events.publishEvent(new ReferenceDataChanged());
 		}
 		catch (DataIntegrityViolationException ex) {
 			throw ApiException.conflict("This category is still used by complaints.");

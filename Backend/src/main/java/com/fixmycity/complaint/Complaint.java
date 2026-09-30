@@ -20,14 +20,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * A civic complaint. Status changes go through the methods below so FMC's lifecycle rules live in one place.
- * AI analysis fields are written by the analysis worker with targeted SQL, so they never cause optimistic-lock
- * conflicts with officer or citizen actions.
+ * AI analysis fields are read-only here: only the analysis worker writes them, with targeted SQL. Dynamic updates
+ * mean a user action never rewrites columns it did not change, such as a priority the AI filled in meanwhile.
  */
 @Entity
 @Table(name = "complaints")
+@DynamicUpdate
 public class Complaint {
 
 	public enum AiStatus {
@@ -72,34 +74,34 @@ public class Complaint {
 	private Priority priority;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "ai_status")
+	@Column(name = "ai_status", insertable = false, updatable = false)
 	private AiStatus aiStatus = AiStatus.PENDING;
 
-	@Column(name = "ai_error")
+	@Column(name = "ai_error", insertable = false, updatable = false)
 	private String aiError;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "ai_category_id")
+	@JoinColumn(name = "ai_category_id", insertable = false, updatable = false)
 	private Category aiCategory;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "ai_priority")
+	@Column(name = "ai_priority", insertable = false, updatable = false)
 	private Priority aiPriority;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "ai_department_id")
+	@JoinColumn(name = "ai_department_id", insertable = false, updatable = false)
 	private Department aiDepartment;
 
-	@Column(name = "ai_summary")
+	@Column(name = "ai_summary", insertable = false, updatable = false)
 	private String aiSummary;
 
-	@Column(name = "ai_image_findings")
+	@Column(name = "ai_image_findings", insertable = false, updatable = false)
 	private String aiImageFindings;
 
-	@Column(name = "ai_model")
+	@Column(name = "ai_model", insertable = false, updatable = false)
 	private String aiModel;
 
-	@Column(name = "ai_updated_at")
+	@Column(name = "ai_updated_at", insertable = false, updatable = false)
 	private Instant aiUpdatedAt;
 
 	@Version

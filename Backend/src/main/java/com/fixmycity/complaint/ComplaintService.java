@@ -2,10 +2,14 @@ package com.fixmycity.complaint;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.fixmycity.auth.AuthUser;
 import com.fixmycity.common.ApiException;
@@ -26,7 +30,9 @@ import com.fixmycity.user.User;
 import com.fixmycity.user.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -58,9 +64,11 @@ public class ComplaintService {
 
 	private final StorageService storage;
 
+	private final ApplicationEventPublisher events;
+
 	ComplaintService(ComplaintRepository complaints, StatusHistoryRepository history, ComplaintNoteRepository notes,
 			AttachmentRepository attachments, FeedbackRepository feedback, UserRepository users,
-			DepartmentService departments, StorageService storage) {
+			DepartmentService departments, StorageService storage, ApplicationEventPublisher events) {
 		this.complaints = complaints;
 		this.history = history;
 		this.notes = notes;
@@ -69,6 +77,7 @@ public class ComplaintService {
 		this.users = users;
 		this.departments = departments;
 		this.storage = storage;
+		this.events = events;
 	}
 
 	// Citizen
@@ -89,6 +98,7 @@ public class ComplaintService {
 		if (file != null) {
 			store(complaint, Attachment.Kind.COMPLAINT_IMAGE, file, citizen);
 		}
+		this.events.publishEvent(new ComplaintSubmitted(complaint.getId()));
 		return new Submission(detail(complaint, actor), true);
 	}
 
@@ -236,13 +246,7 @@ public class ComplaintService {
 	public PageResponse<ComplaintSummary> list(AuthUser actor, ComplaintStatus status, Long categoryId,
 			Long departmentId, Priority priority, int page, int size) {
 		Specification<Complaint> scope = (root, query, cb) -> {
-			List<Predicate> where = new ArrayList<>();
-			switch (actor.role()) {
-				case CITIZEN -> where.add(cb.equal(root.get("citizen").get("id"), actor.id()));
-				case OFFICER -> where.add(cb.equal(root.get("assignedOfficer").get("id"), actor.id()));
-				case ADMIN -> {
-				}
-			}
+			List<Predicate> where = new ArrayList<>(List.of(visibleTo(actor).toPredicate(root, query, cb)));
 			if (status != null) {
 				where.add(cb.equal(root.get("status"), status));
 			}
@@ -259,6 +263,28 @@ public class ComplaintService {
 		};
 		var request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
 		return PageResponse.of(this.complaints.findAll(scope, request), ComplaintSummary::from);
+	}
+
+	/** Summaries for the given ids that the caller may see (used to hydrate semantic search results). */
+	@Transactional(readOnly = true)
+	public Map<Long, ComplaintSummary> summaries(Collection<Long> ids, AuthUser actor) {
+		if (ids.isEmpty()) {
+			return Map.of();
+		}
+		Specification<Complaint> scope = visibleTo(actor).and((root, query, cb) -> root.get("id").in(ids));
+		return this.complaints.findAll(scope, Pageable.unpaged())
+			.stream()
+			.map(ComplaintSummary::from)
+			.collect(Collectors.toMap(ComplaintSummary::id, Function.identity()));
+	}
+
+	/** The same visibility rule as {@link #visible}, as a query filter. */
+	private static Specification<Complaint> visibleTo(AuthUser actor) {
+		return (root, query, cb) -> switch (actor.role()) {
+			case CITIZEN -> cb.equal(root.get("citizen").get("id"), actor.id());
+			case OFFICER -> cb.equal(root.get("assignedOfficer").get("id"), actor.id());
+			case ADMIN -> cb.conjunction();
+		};
 	}
 
 	/** Complaints a user may not see behave as if they do not exist. */
@@ -390,6 +416,9 @@ public class ComplaintService {
 				}
 				if (status == ComplaintStatus.RESOLVED) {
 					actions.add("CLOSE");
+				}
+				if (c.getAiStatus() == Complaint.AiStatus.FAILED) {
+					actions.add("RETRY_AI");
 				}
 			}
 		}
