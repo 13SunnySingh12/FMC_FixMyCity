@@ -84,6 +84,17 @@ class AuthIntegrationTest {
 	}
 
 	@Test
+	void repeatedWrongPasswordsTemporarilyBlockThatAccountOnly() throws Exception {
+		String email = emailRegistered(uniqueEmail());
+		for (int i = 0; i < 10; i++) {
+			login(email, "wrong password").andExpect(status().isUnauthorized());
+		}
+		login(email, PASSWORD).andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.detail").value("Too many failed sign-in attempts. Please wait a few minutes and try again."));
+		login(emailRegistered(uniqueEmail()), PASSWORD).andExpect(status().isOk());
+	}
+
+	@Test
 	void tokenFromCookieOrHeaderIdentifiesTheUser() throws Exception {
 		String email = uniqueEmail();
 		String token = tokenOf(login(emailRegistered(email), PASSWORD).andExpect(status().isOk()));

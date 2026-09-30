@@ -126,7 +126,7 @@ public class AiClient {
 			return call.get();
 		}
 		catch (RestClientException ex) {
-			log.warn("AI service call failed: {}", ex.getClass().getSimpleName());
+			log.warn("AI service call failed: {}", ex.getMessage());
 			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
 					"The AI assistant is temporarily unavailable. Please try again.");
 		}

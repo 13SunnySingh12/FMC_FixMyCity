@@ -1,12 +1,8 @@
 package com.fixmycity.ai;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.fixmycity.ai.AiClient.Answer;
 import com.fixmycity.ai.AiClient.ComplaintHit;
@@ -14,6 +10,7 @@ import com.fixmycity.ai.AiClient.KnowledgeHit;
 import com.fixmycity.ai.AiClient.Suggestion;
 import com.fixmycity.auth.AuthUser;
 import com.fixmycity.common.ApiException;
+import com.fixmycity.common.RateLimit;
 import com.fixmycity.complaint.ComplaintRepository;
 import com.fixmycity.complaint.ComplaintService;
 import com.fixmycity.complaint.ComplaintSummary;
@@ -55,7 +52,8 @@ class AiController {
 
 	private final ComplaintRepository complaintRepository;
 
-	private final RateLimit rateLimit = new RateLimit(20, Duration.ofMinutes(1));
+	private final RateLimit rateLimit = new RateLimit(20, Duration.ofMinutes(1),
+			"Too many AI requests. Please wait a minute and try again.");
 
 	AiController(AiClient ai, AiJobs jobs, ComplaintService complaints, ComplaintRepository complaintRepository) {
 		this.ai = ai;
@@ -112,37 +110,6 @@ class AiController {
 
 	private static String orEmpty(String value) {
 		return (value == null) ? "" : value.strip();
-	}
-
-	/** ponytail: per-user sliding window in memory (one backend instance); move to a shared store to scale out. */
-	static final class RateLimit {
-
-		private final int limit;
-
-		private final Duration window;
-
-		private final Map<Long, Deque<Instant>> calls = new ConcurrentHashMap<>();
-
-		RateLimit(int limit, Duration window) {
-			this.limit = limit;
-			this.window = window;
-		}
-
-		void check(Long userId) {
-			Instant now = Instant.now();
-			Deque<Instant> recent = this.calls.computeIfAbsent(userId, (id) -> new ArrayDeque<>());
-			synchronized (recent) {
-				while (!recent.isEmpty() && recent.peekFirst().isBefore(now.minus(this.window))) {
-					recent.pollFirst();
-				}
-				if (recent.size() >= this.limit) {
-					throw new ApiException(HttpStatus.TOO_MANY_REQUESTS,
-							"Too many AI requests. Please wait a minute and try again.");
-				}
-				recent.addLast(now);
-			}
-		}
-
 	}
 
 }

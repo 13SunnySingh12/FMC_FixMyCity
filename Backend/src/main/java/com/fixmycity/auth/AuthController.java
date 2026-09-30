@@ -1,5 +1,10 @@
 package com.fixmycity.auth;
 
+import java.time.Duration;
+
+import com.fixmycity.common.ApiException;
+import com.fixmycity.common.RateLimit;
+import com.fixmycity.user.User;
 import com.fixmycity.user.UserResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -33,6 +38,10 @@ class AuthController {
 
 	private final TokenService tokens;
 
+	// Slows password guessing against one account: ten wrong passwords lock sign-in for up to ten minutes.
+	private final RateLimit failedLogins = new RateLimit(10, Duration.ofMinutes(10),
+			"Too many failed sign-in attempts. Please wait a few minutes and try again.");
+
 	AuthController(AuthService auth, TokenService tokens) {
 		this.auth = auth;
 		this.tokens = tokens;
@@ -48,7 +57,18 @@ class AuthController {
 
 	@PostMapping("/login")
 	ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
-		UserResponse user = this.auth.login(request.email(), request.password());
+		String email = User.normalizeEmail(request.email());
+		this.failedLogins.requireCapacity(email);
+		UserResponse user;
+		try {
+			user = this.auth.login(request.email(), request.password());
+		}
+		catch (ApiException ex) {
+			if (ex.getStatus() == HttpStatus.UNAUTHORIZED) {
+				this.failedLogins.record(email);
+			}
+			throw ex;
+		}
 		return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, this.tokens.loginCookie(user.id()).toString()).body(user);
 	}
 

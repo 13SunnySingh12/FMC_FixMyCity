@@ -66,6 +66,9 @@ public class StorageService {
 			// Only send checksums the S3 API requires, for compatibility with third-party S3 implementations.
 			.requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
 			.responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
+			// Bound a hung B2 call so the user gets the "storage unavailable" message instead of waiting.
+			.overrideConfiguration((config) -> config.apiCallAttemptTimeout(Duration.ofSeconds(30))
+				.apiCallTimeout(Duration.ofSeconds(60)))
 			.build();
 		this.presigner = S3Presigner.builder().endpointOverride(uri).region(region).credentialsProvider(credentials).build();
 		this.bucket = bucket;

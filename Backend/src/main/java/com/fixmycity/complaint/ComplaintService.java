@@ -142,6 +142,7 @@ public class ComplaintService {
 		complaint.requireStatus("Notes can only be added while the complaint is being worked on.",
 				ComplaintStatus.ASSIGNED, ComplaintStatus.IN_PROGRESS);
 		this.notes.save(new ComplaintNote(complaint, this.users.getReferenceById(actor.id()), body.strip()));
+		complaint.touch(); // new evidence counts as an update for the citizen
 		return detail(complaint, actor);
 	}
 
@@ -160,6 +161,7 @@ public class ComplaintService {
 		}
 		User officer = this.users.getReferenceById(actor.id());
 		images.forEach((image) -> store(complaint, Attachment.Kind.RESOLUTION_PROOF, image, officer));
+		complaint.touch();
 		return detail(complaint, actor);
 	}
 

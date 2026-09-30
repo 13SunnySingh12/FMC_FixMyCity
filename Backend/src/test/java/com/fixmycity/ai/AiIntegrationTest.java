@@ -113,7 +113,7 @@ class AiIntegrationTest {
 		awaitAiStatus(id, citizen, "FAILED");
 		this.api.get("/api/complaints/" + id, this.admin)
 			.andExpect(jsonPath("$.actions", hasItem("RETRY_AI")))
-			.andExpect(jsonPath("$.ai.error").value("ResourceAccessException"));
+			.andExpect(jsonPath("$.ai.error").value("The AI service could not be reached."));
 		this.api.get("/api/complaints/" + id, citizen).andExpect(jsonPath("$.ai.error").doesNotExist());
 		this.api.post("/api/complaints/" + id + "/analysis/retry", citizen, "{}").andExpect(status().isForbidden());
 
@@ -133,6 +133,8 @@ class AiIntegrationTest {
 
 		awaitAiStatus(id, citizen, "FAILED");
 		assertThat(this.jdbc.queryForObject("SELECT ai_category_id FROM complaints WHERE id = ?", Long.class, id)).isNull();
+		assertThat(this.jdbc.queryForObject("SELECT ai_error FROM complaints WHERE id = ?", String.class, id))
+			.isEqualTo("The AI answer did not pass validation.");
 	}
 
 	@Test

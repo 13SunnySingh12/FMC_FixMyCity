@@ -25,10 +25,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Background AI work, so nothing depends on a browser staying open. Complaint analysis state lives in the complaint
@@ -161,7 +164,7 @@ public class AiJobs {
 				|| !departmentIds.contains(analysis.departmentId()) || analysis.priority() == null
 				|| analysis.summary() == null || analysis.summary().isBlank() || analysis.embedding() == null
 				|| analysis.embedding().length != EMBEDDING_DIMENSIONS) {
-			throw new IllegalStateException("unusable analysis");
+			throw new UnusableAnalysis();
 		}
 		String findings = "FAILED".equals(analysis.imageStatus()) ? "The photo could not be analysed."
 				: analysis.imageFindings();
@@ -180,7 +183,7 @@ public class AiJobs {
 				complaintId);
 		boolean giveUp = attempts >= MAX_ATTEMPTS;
 		this.jdbc.update("UPDATE complaints SET ai_status = ?, ai_error = ?, ai_updated_at = now() WHERE id = ?",
-				giveUp ? "FAILED" : "PENDING", truncate(describe(ex), 500), complaintId);
+				giveUp ? "FAILED" : "PENDING", reason(ex), complaintId);
 		if (giveUp) {
 			log.warn("AI analysis for complaint {} failed after {} attempts: {}", complaintId, attempts, describe(ex));
 			return;
@@ -191,10 +194,34 @@ public class AiJobs {
 		schedule(complaintId, delay);
 	}
 
-	/** Failure summary for logs and admins: type and status only, never payloads. */
+	/** Failure summary for logs: type and status only, never payloads. */
 	private static String describe(RuntimeException ex) {
 		return (ex instanceof HttpStatusCodeException http)
 				? ex.getClass().getSimpleName() + " " + http.getStatusCode().value() : ex.getClass().getSimpleName();
+	}
+
+	/** Why the analysis failed, in words an administrator can act on (shown on the complaint). */
+	static String reason(RuntimeException ex) {
+		return switch (ex) {
+			case ResourceAccessException unreachable -> "The AI service could not be reached.";
+			case HttpStatusCodeException http when http.getStatusCode().value() == 503 ->
+				"The AI providers were unavailable.";
+			case HttpStatusCodeException http ->
+				"The AI service returned an error (HTTP " + http.getStatusCode().value() + ").";
+			case UnusableAnalysis unusable -> "The AI answer did not pass validation.";
+			case RestClientException unreadable -> "The AI service sent an answer that could not be read.";
+			case DataAccessException database -> "The analysis could not be saved.";
+			default -> "The analysis failed unexpectedly.";
+		};
+	}
+
+	/** The model's answer referenced ids we did not offer, lacked a field, or had the wrong vector size. */
+	static final class UnusableAnalysis extends RuntimeException {
+
+		UnusableAnalysis() {
+			super("unusable analysis");
+		}
+
 	}
 
 	private static String vector(float[] values) {

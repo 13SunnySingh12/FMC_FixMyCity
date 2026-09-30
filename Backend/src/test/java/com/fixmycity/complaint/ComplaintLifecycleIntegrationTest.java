@@ -1,5 +1,6 @@
 package com.fixmycity.complaint;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import com.fixmycity.IntegrationTest;
@@ -8,6 +9,7 @@ import com.fixmycity.TestApi.Session;
 import com.fixmycity.common.ApiException;
 import com.fixmycity.storage.ImageFile;
 import com.fixmycity.storage.StorageService;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +21,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -170,6 +173,31 @@ class ComplaintLifecycleIntegrationTest {
 			.andExpect(jsonPath("$.timeline[*].status", contains("SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED",
 					"ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED")));
 		this.api.post(path + "/feedback", citizen, "{\"rating\": 5}").andExpect(status().isConflict());
+	}
+
+	@Test
+	void newEvidenceCountsAsAnUpdateForTheCitizen() throws Exception {
+		Session citizen = this.api.citizen();
+		Session officer = this.api.officer(this.roadsDepartment);
+		long id = TestApi.id(submit(citizen, UUID.randomUUID(), null));
+		String path = "/api/complaints/" + id;
+		assign(id, this.admin, officer.id());
+
+		Instant started = updatedAt(this.api.post(path + "/start", officer, "{}"));
+		Instant noted = updatedAt(this.api.post(path + "/notes", officer, "{\"body\": \"Inspected the site.\"}"));
+		assertThat(noted).isAfter(started);
+		assertThat(updatedAt(uploadProof(id, officer))).isAfter(noted);
+	}
+
+	@Test
+	void malformedIdsGetAPlainAnswer() throws Exception {
+		this.api.get("/api/complaints/not-a-number", this.api.citizen())
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("Some of the information sent is not valid. Check it and try again."));
+	}
+
+	private static Instant updatedAt(ResultActions result) throws Exception {
+		return Instant.parse(JsonPath.read(result.andReturn().getResponse().getContentAsString(), "$.updatedAt"));
 	}
 
 	@Test
