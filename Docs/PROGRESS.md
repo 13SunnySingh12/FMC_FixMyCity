@@ -66,7 +66,7 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | Spring Boot ↔ FastAPI over REST | `RestClient` (HTTP/1.1, separate interactive/background timeouts) + shared internal key | [✓] |
 | Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
 | Long-running AI work survives browser/server restarts | `ai_status` in the complaint row, atomic claim, ×4 backoff retries, admin retry, startup recovery (verified live) | [✓] |
-| Docker, Maven, GitHub Actions CI/CD | Per-service Dockerfiles, Compose, CI workflow | [ ] |
+| Docker, Maven, GitHub Actions CI/CD | Multi-stage non-root images (backend, AI verified healthy in Compose against the real services); CI runs Maven verify and pytest + Ruff with Testcontainers and publishes images to GHCR on main; frontend image and job pending | [→] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
 
 ## Decisions (recorded before implementation)
