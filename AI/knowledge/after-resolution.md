@@ -6,11 +6,11 @@ Before an officer can mark a complaint as resolved, FMC requires them to record 
 
 ## Reopening a complaint
 
-If a complaint is marked Resolved but the problem is not actually fixed, open the complaint and choose "Reopen". Explain what is still wrong in at least 10 characters. Only resolved complaints can be reopened. The complaint goes back to the same officer with the status Assigned, or to the department's queue if that officer is no longer active. The officer must add new notes and new proof before resolving it again.
+If a complaint is marked Resolved but the problem is not actually fixed, open the complaint and choose "It is not fixed: reopen". Explain what is still wrong in at least 10 characters. Only resolved complaints can be reopened. The complaint goes back to the same officer with the status Assigned, or to the department's queue if that officer is no longer active. The officer must add new notes and new proof before resolving it again.
 
 ## Giving feedback on a resolution
 
-When a complaint is Resolved and you are satisfied, choose "Give feedback": rate the resolution from 1 to 5 stars and optionally add a comment. Giving feedback closes the complaint. Each complaint can receive feedback once.
+When a complaint is Resolved and you are satisfied, choose "Confirm the fix": rate how well it was fixed from 1 (poor) to 5 (excellent) and optionally add a comment. Giving feedback closes the complaint. Each complaint can receive feedback once.
 
 ## Reassignment to another officer or department
 

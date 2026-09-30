@@ -1,0 +1,222 @@
+/* FixMyCity: street-signage world. Sign colours live only on sign faces; everything else is matte concrete.
+   Contrast ratios noted against the surface they sit on (WCAG 2.2 AA). */
+
+:root {
+  color-scheme: light;
+  --ground: #f4f5f2; /* matte concrete */
+  --plate: #ffffff; /* white sign blank */
+  --ink: #1c2127; /* charcoal, 13.9:1 on ground */
+  --ink-2: #4a535e; /* secondary text, 7.1:1 on ground */
+  --rule: #d3d8d2; /* hairlines between rows */
+  --rule-strong: #7e8781; /* control borders, 3.4:1 on ground (non-text) */
+  --band: #0e6b47; /* guide-sign green; white text 6.5:1 */
+  --go: #0e6b47;
+  --go-press: #0a5438;
+  --go-ink: #0e6b47; /* green text, 6.0:1 on ground */
+  --go-tint: #e3efe8;
+  --amber: #f2b705; /* warning plates and hazard stripes; ink text 8.9:1 */
+  --amber-tint: #fdf3d0;
+  --stop: #b42318; /* destructive faces; white text 6.6:1 */
+  --stop-ink: #b42318; /* error text, 6.0:1 on ground */
+  --stop-tint: #fbe9e7;
+  --focus: #1c2127;
+  --edge: rgb(255 255 255 / 0.85); /* the reflective inset border on sign faces */
+
+  --font: 'Overpass Variable', 'Overpass', system-ui, sans-serif;
+  --mono: 'Overpass Mono', ui-monospace, 'Cascadia Mono', monospace;
+  --radius: 6px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --page: 1120px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ground: #111417; /* asphalt at night */
+    --plate: #1a1f24;
+    --ink: #e8ece9; /* 15.9:1 on ground */
+    --ink-2: #a8b1ab; /* 8.4:1 on ground */
+    --rule: #2c343b;
+    --rule-strong: #6f7a73; /* 3.7:1 on plate */
+    --band: #0f5b3e; /* white text 8.1:1 */
+    --go: #127a52; /* white text 5.3:1 */
+    --go-press: #0e6b47;
+    --go-ink: #5cc495; /* 8.7:1 on ground */
+    --go-tint: #16322a;
+    --amber-tint: #3a3217;
+    --stop: #c0362c; /* white text 5.5:1 */
+    --stop-ink: #f07b72; /* 6.9:1 on ground */
+    --stop-tint: #3a1d1b;
+    --focus: #e8ece9;
+    --edge: rgb(255 255 255 / 0.7);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  accent-color: var(--go);
+  scrollbar-color: var(--rule-strong) var(--ground);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  font-weight: 800;
+  text-wrap: balance;
+}
+
+h3 {
+  font-size: 1rem;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  h1 {
+    font-size: 2.125rem;
+  }
+}
+
+p,
+li,
+dd {
+  max-width: 70ch;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--go-ink);
+  font-weight: 600;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+textarea {
+  caret-color: var(--go-ink);
+}
+
+::selection {
+  background: var(--amber);
+  color: #1c2127;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.small {
+  font-size: 0.875rem;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--page);
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: 24px;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--plate);
+  color: var(--ink);
+  border-radius: var(--radius);
+  transform: translateY(-160%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+main:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

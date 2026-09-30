@@ -1,0 +1,250 @@
+/* ---------- Welcome ---------- */
+
+.welcome {
+  gap: 44px;
+}
+
+.welcome__intro {
+  display: grid;
+  gap: 18px;
+  padding-top: 20px;
+  max-width: 44rem;
+}
+
+.welcome__intro h1 {
+  font-size: 2.25rem;
+  line-height: 1.08;
+}
+
+.lead {
+  font-size: 1.125rem;
+  color: var(--ink-2);
+}
+
+@media (min-width: 768px) {
+  .welcome__intro h1 {
+    font-size: 3.25rem;
+  }
+}
+
+/* Each stage explained directly under its stop on the route. */
+.stations {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.stations div {
+  display: grid;
+  gap: 4px;
+}
+
+.stations dt {
+  font-weight: 800;
+}
+
+.stations dd {
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+
+@media (min-width: 900px) {
+  .stations {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+
+  .stations div {
+    padding-inline: 6px;
+  }
+}
+
+.steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.steps svg {
+  margin-top: 3px;
+}
+
+/* ---------- Narrow forms (sign in, register) ---------- */
+
+.narrow {
+  max-width: 480px;
+}
+
+/* ---------- Complaint detail ---------- */
+
+.complaint-head {
+  display: grid;
+  gap: 10px;
+}
+
+.complaint-head__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--ink-2);
+}
+
+.complaint-head__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.next-step {
+  display: grid;
+  gap: 14px;
+}
+
+/* Who holds the complaint, read straight off the route. */
+.holder {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 14px;
+  font-weight: 700;
+}
+
+.holder svg {
+  flex: none;
+  margin-top: 0.15em;
+}
+
+/* On a phone the one next step is a full-width sign; other actions wrap below it. */
+@media (max-width: 599px) {
+  .next-step .sign--go {
+    flex-basis: 100%;
+  }
+}
+
+.description {
+  white-space: pre-line;
+}
+
+/* The route log: every status change with who made it and when. */
+.log {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.log li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 18px;
+  position: relative;
+  max-width: none;
+}
+
+.log li::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 18px;
+  bottom: 0;
+  width: 2px;
+  background: var(--rule);
+}
+
+.log li:last-child::before {
+  display: none;
+}
+
+.log__dot {
+  width: 14px;
+  height: 14px;
+  margin: 4px 0 0 4px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.log__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.log__who {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.stars {
+  display: flex;
+  gap: 6px;
+}
+
+.stars .segment span {
+  min-width: 44px;
+  justify-content: center;
+}
+
+/* ---------- Pager ---------- */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+/* ---------- Admin tables ---------- */
+
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.manage-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px 6px;
+}
+
+@media (min-width: 768px) {
+  .manage-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+.manage-row__title {
+  font-weight: 700;
+}
+
+.inline-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--plate);
+  box-shadow: inset 0 0 0 1.5px var(--rule);
+}
+
+.tag {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}

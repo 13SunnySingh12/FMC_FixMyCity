@@ -2,7 +2,7 @@
 
 ## How to report a problem in FMC
 
-Sign in as a citizen and choose "New complaint". Fill in a title, a description, the location and a category, and optionally attach one photo of the problem. Submit the form and FMC records the complaint with the status Submitted. You can follow it at any time from your complaint history.
+Sign in as a citizen and choose "Report a problem". Fill in a title, a description, the location and a category, and optionally attach one photo of the problem. Submit the form and FMC records the complaint with the status Submitted. You can follow it at any time from "My complaints".
 
 If your connection drops while submitting, it is safe to press submit again: FMC recognises the repeated submission and does not create a duplicate complaint.
 

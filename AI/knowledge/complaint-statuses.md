@@ -26,4 +26,4 @@ Closed is the final status. A complaint closes when the citizen gives feedback o
 
 ## Complaint history
 
-"My complaints" lists every complaint you have submitted with its current status, newest first. Open any complaint to see its full timeline, photos, officer notes and resolution proof.
+"My complaints" lists every complaint you have submitted with its current status, newest first. Open any complaint to see its route log (the full timeline), photos, officer notes and resolution proof.
