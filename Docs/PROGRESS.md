@@ -23,13 +23,13 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 11–14 | Classification, priority, department, summary | FastAPI `/analyze` — one structured LLM call (Groq primary, Gemini fallback), validated against real category/department ids | Unit tests (mocked providers); real-provider run | [ ] |
-| 15 | Writing assistant | FastAPI `/assist/write`, proxied by Spring | Real-provider run; E2E | [ ] |
-| 16 | Image recognition (B2 image via signed URL) | FastAPI fetches signed URL → Gemini vision → findings feed classification | Real B2 + Gemini run | [ ] |
-| 17 | Embeddings | Gemini embeddings, 768 dims | Dimension check; real run | [ ] |
-| 18 | Vector database | pgvector on Neon (`vector(768)`, HNSW cosine) | Schema check via Neon MCP | [ ] |
-| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/*`, scope enforced by Spring | Scope tests; real run | [ ] |
-| 20 | RAG civic assistant | FastAPI `/assistant/ask`: retrieve KB → grounded answer + sources; honest "not found" when nothing retrieved | Real run; no-retrieval test | [ ] |
+| 11–14 | Classification, priority, department, summary | FastAPI `/analyze`: one strict-schema Groq call (Gemini fallback) constrained to real category/department ids | Unit tests ✓; live: citizen chose "Other", AI → Roads/Roads & Public Works, MEDIUM ✓; backend wiring pending | [→] |
+| 15 | Writing assistant | FastAPI `/assist/write` (keeps facts, lists missing details) | Live: rough Hinglish → clear complaint in 0.9s ✓; backend + UI pending | [→] |
+| 16 | Image recognition (B2 image via signed URL) | B2 signed URL (HTTPS, B2 host only) → Gemini vision → findings fed into triage; failures degrade to text-only | Live via real B2 signed URL ✓; backend wiring pending | [→] |
+| 17 | Embeddings | `gemini-embedding-2`, 768 dims, retrieval prefixes | Live: 42 KB chunks, unit-norm vectors in Neon ✓ | [→] |
+| 18 | Vector database | pgvector on Neon (`vector(768)`, HNSW cosine) | Neon MCP ✓ | [→] |
+| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/complaints` (scope from backend) and `/search/knowledge` | Scope tests ✓; live knowledge search ✓; backend + UI pending | [→] |
+| 20 | RAG civic assistant | FastAPI `/assistant/ask`: live department directory + 7 civic docs; threshold 0.68 calibrated on real data | Live: FMC example questions answered with sources; off-topic → "not covered" without an LLM call ✓; UI pending | [→] |
 
 ## Officer (FMC C.21–C.28)
 
@@ -84,14 +84,16 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 9. **Framework conventions win.** `.github/workflows` stays at the repo root; Flyway migrations stay in the backend (it owns the schema for both services).
 10. **Seed reference data.** FMC's six categories are seeded with one matching department each; department names are editable by admins.
 11. **Models (verified live 2026-09-29).** Groq `openai/gpt-oss-120b` for text (strict JSON schema; rated an open manhole HIGH where 20b said MEDIUM). Gemini `gemini-3.5-flash-lite` → `gemini-3.5-flash` ordered fallback for vision and text fallback (other 3.x Flash models returned 503/timeouts under load). `gemini-embedding-2` at 768 dims (auto-normalised). Model ids are configurable because providers retire them.
+12. **Knowledge base stays current.** Department routing answers come from a directory generated from the live tables at each sync; static docs cover process. Sync embeds only changed chunks (hash-checked).
+13. **Neon scale-to-zero.** Both services keep no idle database connections, so pooled connections do not keep waking the database.
 
 ## Current state
 
 ```text
-Current Step:          FastAPI AI service
-Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage
+Current Step:          Backend ↔ AI integration (background analysis, assistant, search)
+Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service (live-verified)
 Manual Action Required: None
-Tests Passed:          Backend 34/34; auth and full complaint lifecycle runtime-verified on Neon + B2
+Tests Passed:          Backend 34/34; AI service 19/19; auth and full complaint lifecycle runtime-verified on Neon + B2
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
 Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)
