@@ -4,7 +4,7 @@ AI-powered civic complaint management: citizens report local problems with a pho
 
 The full product specification is in [FMC.md](FMC.md). Verified progress against it is tracked in [Docs/PROGRESS.md](Docs/PROGRESS.md).
 
-> Status: under active development. Only what is marked `[✓]` in the progress file is implemented and verified.
+> Status: every requirement in FMC.md is implemented and verified; the progress file records how each one was checked.
 
 ## Architecture
 

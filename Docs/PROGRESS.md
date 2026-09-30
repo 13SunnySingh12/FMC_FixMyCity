@@ -93,11 +93,11 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          Final audit
-Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration; React frontend (browser-verified end to end); container images and CI for all three services
+Current Step:          Complete: every FMC requirement implemented and verified
+Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration; React frontend (browser-verified end to end); container images and CI for all three services; final audit against FMC.md
 Manual Action Required: None
-Tests Passed:          Backend 44/44; AI service 19/19; frontend 9/9; browser end-to-end on desktop and phone in both themes
+Tests Passed:          Backend 44/44; AI service 19/19; frontend 9/9 (locally and in GitHub Actions); browser end-to-end on desktop and phone in both themes
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
-Verification data:     Runtime checks on Neon created citizens and an officer with @fixmycity.test emails (clearly marked, safe to remove)
+Verification data:     Runtime checks on Neon created citizens and an officer with @fixmycity.test emails, and the browser run left four test photos in B2; removal waits for the owner's approval
 ```
