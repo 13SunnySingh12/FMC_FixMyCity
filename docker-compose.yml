@@ -1,0 +1,39 @@
+# Runs FMC locally against the real Neon, Backblaze B2, Gemini and Groq services configured in .env.
+# Each service receives only the variables it needs. Open http://localhost:8081
+# (set FRONTEND_PORT to publish on another host port when 8081 is taken).
+services:
+  ai:
+    build: ./AI
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    restart: unless-stopped
+
+  backend:
+    build: ./Backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY}
+      AI_SERVICE_URL: http://ai:8000
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      B2_ENDPOINT: ${B2_ENDPOINT}
+      B2_BUCKET: ${B2_BUCKET}
+      B2_KEY_ID: ${B2_KEY_ID}
+      B2_APPLICATION_KEY: ${B2_APPLICATION_KEY}
+    depends_on:
+      ai:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./Frontend
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

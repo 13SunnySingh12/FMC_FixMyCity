@@ -31,3 +31,49 @@ All services read one `.env` at the repository root. Copy [.env.example](.env.ex
 | `B2_ENDPOINT`, `B2_BUCKET`, `B2_KEY_ID`, `B2_APPLICATION_KEY` | backend | Backblaze B2 private bucket and application key |
 | `GEMINI_API_KEY` | AI service | Google AI Studio |
 | `GROQ_API_KEY` | AI service | Groq console |
+
+## Run it
+
+With Docker, one command builds and starts all three services against the services configured in `.env`:
+
+```bash
+docker compose up --build
+```
+
+Open http://localhost:8081 (set `FRONTEND_PORT` to use another port). Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD`, add officers under **People**, and citizens register themselves.
+
+For development, run each service from its folder. The backend and AI service read the root `.env` themselves:
+
+```bash
+cd Backend && mvn spring-boot:run
+```
+
+```bash
+cd AI && uv run uvicorn app.main:app --port 8000
+```
+
+```bash
+cd Frontend && npm ci && npm run dev
+```
+
+The frontend dev server runs on http://localhost:5173 and proxies `/api` to the backend on port 8080, the same single-origin setup nginx gives the container.
+
+## Test
+
+```bash
+cd Backend && mvn verify
+```
+
+```bash
+cd AI && uv run ruff check && uv run pytest
+```
+
+```bash
+cd Frontend && npm run lint && npm test
+```
+
+Backend integration tests start PostgreSQL with pgvector through Testcontainers, so Docker must be running. No test touches Neon, Backblaze B2, Gemini or Groq.
+
+## Continuous integration
+
+[GitHub Actions](.github/workflows/ci.yml) runs the three test suites on every push and pull request, then builds the three container images. Pushes to `main` publish them to GitHub Container Registry as `ghcr.io/<owner>/fmc-backend`, `fmc-ai` and `fmc-frontend`.

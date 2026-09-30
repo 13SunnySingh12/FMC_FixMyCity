@@ -6,56 +6,58 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 ## Citizen (FMC A.1–A.10)
 
+Browser verification ran the React app against a disposable PostgreSQL + pgvector database with the real Backblaze B2, Gemini and Groq services, on desktop (1280px) and phone (390px) widths in both themes.
+
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 1 | Registration & login | Backend `auth` (BCrypt, JWT in httpOnly cookie), Frontend login/register | MockMvc auth tests; runtime check on Neon ✓; browser E2E pending | [→] |
-| 2 | Create complaint (title, description, category, location, image) | `POST /api/complaints` (multipart, idempotent via requestId) | API verified on Neon + B2; UI pending | [→] |
-| 3 | Category selection | Seeded categories, `GET /api/categories` | API verified on Neon + B2; UI pending | [→] |
-| 4 | Image upload → B2 `complaints/{complaintId}/{fileName}` | `StorageService` (B2 S3 API) → `complaints/{id}/{uuid}.{ext}`; signature-checked, ≤ 5 MB | Real B2 upload, byte-identical signed-URL fetch, unsigned 401 ✓; UI pending | [→] |
-| 5 | Location submission | `complaints.location` (required) | API verified on Neon + B2; UI pending | [→] |
-| 6 | Complaint tracking | `GET /api/complaints` scoped to the caller | API verified on Neon + B2; UI pending | [→] |
-| 7 | Status timeline (Submitted → Assigned → In Progress → Resolved → Closed) | `complaint_status_history` with actor and note | API verified on Neon + B2; UI pending | [→] |
-| 8 | Complaint history | Paged, filterable history list | API verified on Neon + B2; UI pending | [→] |
-| 9 | Reopen resolved complaint | `POST …/reopen` (RESOLVED → ASSIGNED; inactive officer → department queue) | Lifecycle tests ✓; UI pending | [→] |
-| 10 | Resolution feedback | `POST …/feedback` (RESOLVED → CLOSED, one per complaint) | API verified on Neon + B2; UI pending | [→] |
+| 1 | Registration & login | Backend `auth` (BCrypt, JWT in httpOnly cookie); Register and Sign in pages | Auth tests ✓; browser: register, sign in, sign out ✓ | [✓] |
+| 2 | Create complaint (title, description, category, location, image) | `POST /api/complaints` (multipart, idempotent via requestId); Report a problem page | Browser: report with photo ✓ | [✓] |
+| 3 | Category selection | Seeded categories; category plates on the report form | Browser ✓ | [✓] |
+| 4 | Image upload → B2 `complaints/{complaintId}/{fileName}` | `StorageService` (B2 S3 API) → `complaints/{id}/{uuid}.{ext}`; signature-checked, ≤ 5 MB | Real B2 upload, byte-identical signed-URL fetch, unsigned 401 ✓; browser upload and signed display ✓ | [✓] |
+| 5 | Location submission | `complaints.location` (required) | Browser ✓ | [✓] |
+| 6 | Complaint tracking | `GET /api/complaints` scoped to the caller; My complaints and the complaint page's route strip | Browser ✓ | [✓] |
+| 7 | Status timeline (Submitted → Assigned → In Progress → Resolved → Closed) | `complaint_status_history` with actor and note; route strip, holder line and route log | Browser: full cycle including a reopen round ✓ | [✓] |
+| 8 | Complaint history | Paged list with status filter | Browser ✓ | [✓] |
+| 9 | Reopen resolved complaint | `POST …/reopen` (RESOLVED → ASSIGNED; inactive officer → department queue) | Lifecycle tests ✓; browser reopen at 390px → Assigned to the same officer ✓ | [✓] |
+| 10 | Resolution feedback | `POST …/feedback` (RESOLVED → CLOSED, one per complaint) | Browser: 4/5 rating closed the complaint ✓ | [✓] |
 
 ## AI (FMC B.11–B.20)
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 11–14 | Classification, priority, department, summary | FastAPI `/analyze`: one strict-schema Groq call (Gemini fallback) constrained to real category/department ids | Live through the backend: filed as "Other", analysed in the background in 7.4s → Roads / Roads & Public Works, MEDIUM ✓; UI pending | [→] |
-| 15 | Writing assistant | FastAPI `/assist/write` (keeps facts, lists missing details) | Live via `/api/ai/write` (1.2s) ✓; UI pending | [→] |
-| 16 | Image recognition (B2 image via signed URL) | B2 signed URL (HTTPS, B2 host only) → Gemini vision → findings fed into triage; failures degrade to text-only | Live: real B2 photo → "pothole clearly visible" ✓; startup recovery analysed a pre-existing complaint ✓ | [→] |
-| 17 | Embeddings | `gemini-embedding-2`, 768 dims, retrieval prefixes | Live: 42 KB chunks, unit-norm vectors in Neon ✓ | [→] |
-| 18 | Vector database | pgvector on Neon (`vector(768)`, HNSW cosine) | Neon MCP ✓ | [→] |
-| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/complaints` (scope from backend) and `/search/knowledge` | Live via `/api/search/*`: citizen sees only own complaints, admin sees all ✓; UI pending | [→] |
-| 20 | RAG civic assistant | FastAPI `/assistant/ask`: live department directory + 7 civic docs; threshold 0.68 calibrated on real data | Live via `/api/assistant/ask`: grounded reopen guidance with sources ✓; UI pending | [→] |
+| 11–14 | Classification, priority, department, summary | FastAPI `/analyze`: one strict-schema Groq call (Gemini fallback) constrained to real category/department ids; background worker in the backend | Live through the browser: photo complaint analysed in the background (Roads, Medium, Roads & Public Works, summary) ✓ | [✓] |
+| 15 | Writing assistant | FastAPI `/assist/write` (keeps facts, lists missing details); "Improve with AI" on the report form | Live through the browser ✓ | [✓] |
+| 16 | Image recognition (B2 image via signed URL) | B2 signed URL (HTTPS, B2 host only) → Gemini vision → findings fed into triage; failures degrade to text-only | Live: "What the photo shows" from the uploaded B2 photo ✓; startup recovery ✓ | [✓] |
+| 17 | Embeddings | `gemini-embedding-2`, 768 dims, retrieval prefixes | Live: 42 knowledge chunks, unit-norm vectors ✓ | [✓] |
+| 18 | Vector database | pgvector (`vector(768)`, HNSW cosine) in the one PostgreSQL database | Neon MCP ✓; Testcontainers pgvector ✓ | [✓] |
+| 19 | Semantic search (complaints, role-scoped; civic info) | FastAPI `/search/complaints` (scope from backend) and `/search/knowledge`; Search page | Live through the browser: meaning-based match across complaints and guidance ✓ | [✓] |
+| 20 | RAG civic assistant | FastAPI `/assistant/ask`: live department directory + 7 civic docs; threshold 0.68 calibrated on real data; Ask FMC page | Live through the browser: grounded answer with sources; off-topic question declined without generation ✓ | [✓] |
 
 ## Officer (FMC C.21–C.28)
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 21 | Officer login | Shared auth, role `OFFICER` | Auth + officer tests ✓ | [✓] |
-| 22 | Officer dashboard | `GET /api/complaints` scoped to the assigned officer, status/priority filters | API verified on Neon + B2; UI pending | [→] |
-| 23 | View assigned complaint (image, location, AI analysis) | Detail with signed image URLs, AI analysis, allowed actions | API verified on Neon + B2; UI pending | [→] |
-| 24 | Update status | `…/start`, `…/resolve` | API verified on Neon + B2; UI pending | [→] |
-| 25 | Investigation notes | `POST …/notes` | API verified on Neon + B2; UI pending | [→] |
-| 26 | Resolution proof → B2 `resolution-proofs/{complaintId}/{fileName}` | `POST …/proofs` → `resolution-proofs/{id}/{uuid}.{ext}` (max 5) | API verified on Neon + B2; UI pending | [→] |
-| 27 | Mark resolved (requires note + proof) | Requires note + proof added since the latest (re)assignment | Negative tests + real run (409 without evidence) ✓; UI pending | [→] |
-| 28 | Reassign to officer or department | `POST …/assignment` — officer or department target | Lifecycle tests ✓; UI pending | [→] |
+| 21 | Officer login | Shared auth, role `OFFICER` | Auth + officer tests ✓; browser ✓ | [✓] |
+| 22 | Officer dashboard | My queue: complaints assigned to the officer with status and priority filters | Browser ✓ | [✓] |
+| 23 | View assigned complaint (image, location, AI analysis) | Complaint page with signed images, AI analysis, allowed actions | Browser ✓ | [✓] |
+| 24 | Update status | Start work, Mark resolved | Browser ✓ | [✓] |
+| 25 | Investigation notes | `POST …/notes`; inline note form | Browser ✓ | [✓] |
+| 26 | Resolution proof → B2 `resolution-proofs/{complaintId}/{fileName}` | `POST …/proofs` → `resolution-proofs/{id}/{uuid}.{ext}` (max 5) | Browser upload ✓ | [✓] |
+| 27 | Mark resolved (requires note + proof) | Requires note + proof added since the latest (re)assignment; the page says what evidence is missing | Negative tests + real run (409 without evidence) ✓; browser ✓ | [✓] |
+| 28 | Reassign to officer or department | `POST …/assignment`, officer or department target; the officer's Reassign opens the same form admins use | Lifecycle tests ✓; assignment form verified in the browser (as admin) | [✓] |
 
 ## Admin (FMC D.29–D.36)
 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
-| 29 | Admin dashboard | Frontend admin home | E2E | [ ] |
-| 30 | User (citizen) management | `GET/PATCH /api/admin/users` — paged list, activate/deactivate (immediate) | Integration tests ✓; UI pending | [→] |
-| 31 | Officer management | `POST /api/admin/officers`, department change, activate/deactivate | Integration tests ✓; UI pending | [→] |
-| 32 | Department management | `/api/admin/departments` CRUD, delete blocked when in use | Integration tests ✓; UI pending | [→] |
-| 33 | Complaint management | All complaints with filters; edit category/priority; close | Integration tests ✓; UI pending | [→] |
-| 34 | Complaint assignment | `POST …/assignment` by admin | API verified on Neon + B2; UI pending | [→] |
-| 35 | Category management | `/api/admin/categories` CRUD with department routing | Integration tests ✓; UI pending | [→] |
-| 36 | Basic analytics | `GET /api/admin/analytics`: totals, pending, resolved, by status, category, priority (incl. unset), department, failed AI | Integration test ✓; UI pending | [→] |
+| 29 | Admin dashboard | Overview: route counts and measured bars | Browser ✓ | [✓] |
+| 30 | User (citizen) management | People → Citizens: paged list, deactivate/reactivate (immediate) | Integration tests ✓; browser list ✓ | [✓] |
+| 31 | Officer management | People → Officers: add officer, move department, deactivate/reactivate | Integration tests ✓; browser: officer added and signed in ✓ | [✓] |
+| 32 | Department management | Routing page; `/api/admin/departments` CRUD, delete blocked when in use | Integration tests ✓; browser page ✓ | [✓] |
+| 33 | Complaint management | All complaints with URL filters; edit category/priority; close | Integration tests ✓; browser ✓ | [✓] |
+| 34 | Complaint assignment | Assign form (AI-suggested department preselected) | Browser ✓ | [✓] |
+| 35 | Category management | Routing page; `/api/admin/categories` CRUD with department routing | Integration tests ✓; browser page ✓ | [✓] |
+| 36 | Basic analytics | `GET /api/admin/analytics` on the Overview | Integration test ✓; browser ✓ | [✓] |
 
 ## Cross-cutting (FMC architecture & stack)
 
@@ -66,7 +68,8 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | Spring Boot ↔ FastAPI over REST | `RestClient` (HTTP/1.1, separate interactive/background timeouts) + shared internal key | [✓] |
 | Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
 | Long-running AI work survives browser/server restarts | `ai_status` in the complaint row, atomic claim, ×4 backoff retries, admin retry, startup recovery (verified live) | [✓] |
-| Docker, Maven, GitHub Actions CI/CD | Multi-stage non-root images (backend, AI verified healthy in Compose against the real services); CI runs Maven verify and pytest + Ruff with Testcontainers and publishes images to GHCR on main; frontend image and job pending | [→] |
+| React frontend (JavaScript + CSS) | Vite SPA, React Router data mode; "Street Signage" design (guide-green band, sign-face buttons, route strip, Overpass/Overpass Mono), light and dark themes; labelled fields, focus management on navigation and after actions, skip link, reduced-motion support; 9 Vitest tests | [✓] |
+| Docker, Maven, GitHub Actions CI/CD | Multi-stage non-root images; nginx serves the SPA with CSP and security headers and proxies `/api`; the full Compose stack verified healthy against the real services; the frontend image verified with real B2 photos under its CSP; CI runs Maven verify, pytest + Ruff, and lint + tests + build for the frontend, then publishes three images to GHCR on main | [✓] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
 
 ## Decisions (recorded before implementation)
@@ -90,11 +93,11 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          React frontend
-Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration (all live-verified)
+Current Step:          Final audit
+Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration; React frontend (browser-verified end to end); container images and CI for all three services
 Manual Action Required: None
-Tests Passed:          Backend 43/43 (stable across runs); AI service 19/19; auth and full complaint lifecycle runtime-verified on Neon + B2
+Tests Passed:          Backend 44/44; AI service 19/19; frontend 9/9; browser end-to-end on desktop and phone in both themes
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
-Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)
+Verification data:     Runtime checks on Neon created citizens and an officer with @fixmycity.test emails (clearly marked, safe to remove)
 ```
