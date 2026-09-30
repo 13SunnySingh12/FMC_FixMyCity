@@ -2,9 +2,7 @@
 
 AI-powered civic complaint management: citizens report local problems with a photo and location, officers resolve them with notes and proof, and admins route and monitor everything. AI helps write complaints, reads the photo, suggests category, priority and department, summarises for officers, and answers civic questions from the project's own knowledge base.
 
-The full product specification is in [FMC.md](FMC.md). How each requirement was implemented and verified is recorded in [Docs/PROGRESS.md](Docs/PROGRESS.md).
-
-> Status: every requirement in FMC.md is implemented and verified; the progress file records how each one was checked.
+> Status: every feature below is implemented and verified, including end to end against the live services.
 
 ## Features
 
@@ -30,7 +28,6 @@ React (JavaScript) ──REST──> Spring Boot (Java 21) ──REST──> Fas
 | [Frontend](Frontend) | React single-page app (Vite), served by nginx in production |
 | [Backend](Backend) | Spring Boot API: authentication, complaint rules, B2 storage, database migrations (Flyway), background AI jobs |
 | [AI](AI) | FastAPI service: analysis, writing assistant, embeddings, semantic search, RAG; civic knowledge base in [AI/knowledge](AI/knowledge) |
-| [Docs](Docs) | Requirement traceability and design decisions |
 
 ## Configuration
 
@@ -88,7 +85,7 @@ cd AI && uv run ruff check && uv run pytest
 cd Frontend && npm run lint && npm test
 ```
 
-Backend and AI service tests start PostgreSQL with pgvector through Testcontainers, so Docker must be running. No automated test touches Neon, Backblaze B2, Gemini or Groq; those integrations are exercised by the end-to-end checks recorded in [Docs/PROGRESS.md](Docs/PROGRESS.md).
+Backend and AI service tests start PostgreSQL with pgvector through Testcontainers, so Docker must be running. No automated test touches Neon, Backblaze B2, Gemini or Groq; those integrations are verified with end-to-end checks against the live services.
 
 ## API
 

@@ -15,7 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Admin management of citizen and officer accounts (FMC features 30 and 31). */
+/** Admin management of citizen and officer accounts. */
 @Service
 public class UserAdminService {
 

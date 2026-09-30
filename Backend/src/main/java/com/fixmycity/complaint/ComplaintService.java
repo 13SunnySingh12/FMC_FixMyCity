@@ -39,7 +39,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-/** The complaint lifecycle (FMC features 2–10, 22–28, 33–34). Every rule is enforced here, whatever the UI shows. */
+/** The complaint lifecycle for citizens, officers and admins. Every rule is enforced here, whatever the UI shows. */
 @Service
 public class ComplaintService {
 
