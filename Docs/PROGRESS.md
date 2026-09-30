@@ -55,7 +55,7 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | 33 | Complaint management | All complaints with filters; edit category/priority; close | Integration tests ✓; UI pending | [→] |
 | 34 | Complaint assignment | `POST …/assignment` by admin | API verified on Neon + B2; UI pending | [→] |
 | 35 | Category management | `/api/admin/categories` CRUD with department routing | Integration tests ✓; UI pending | [→] |
-| 36 | Basic analytics | Totals, pending, resolved, by category, by priority | Integration test | [ ] |
+| 36 | Basic analytics | `GET /api/admin/analytics`: totals, pending, resolved, by status, category, priority (incl. unset), department, failed AI | Integration test ✓; UI pending | [→] |
 
 ## Cross-cutting (FMC architecture & stack)
 
