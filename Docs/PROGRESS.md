@@ -1,8 +1,6 @@
-# FMC — Requirement Traceability & Progress
+# FMC — Requirement traceability and verification
 
-Source of truth: [`FMC.md`](../FMC.md). Every row maps an FMC requirement to its implementation and verification path.
-
-Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]` manual action required · `[✗]` blocked
+Source of truth: [`FMC.md`](../FMC.md). Every row maps an FMC requirement to its implementation and to how it was verified. `[✓]` means implemented and verified.
 
 ## Citizen (FMC A.1–A.10)
 
@@ -68,11 +66,12 @@ Browser verification ran the React app against a disposable PostgreSQL + pgvecto
 | Spring Boot ↔ FastAPI over REST | `RestClient` (HTTP/1.1, separate interactive/background timeouts) + shared internal key | [✓] |
 | Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
 | Long-running AI work survives browser/server restarts | `ai_status` in the complaint row, atomic claim, ×4 backoff retries, admin retry, startup recovery (verified live) | [✓] |
+| Graceful failure | AI service, database and B2 outages return plain-language 503s while the rest of the app keeps working; failed analyses show admins a readable reason and can be retried (verified by stopping each dependency) | [✓] |
 | React frontend (JavaScript + CSS) | Vite SPA, React Router data mode; "Street Signage" design (guide-green band, sign-face buttons, route strip, Overpass/Overpass Mono), light and dark themes; labelled fields, focus management on navigation and after actions, skip link, reduced-motion support; 9 Vitest tests | [✓] |
 | Docker, Maven, GitHub Actions CI/CD | Multi-stage non-root images; nginx serves the SPA with CSP and security headers and proxies `/api`; the full Compose stack verified healthy against the real services; the frontend image verified with real B2 photos under its CSP; CI runs Maven verify, pytest + Ruff, and lint + tests + build for the frontend, then publishes three images to GHCR on main | [✓] |
 | Excluded by FMC | Kubernetes, Kafka, Redis, microservice orchestration, separate vector DB, predictive analytics, IoT, large CV pipelines | Not used |
 
-## Decisions (recorded before implementation)
+## Decisions
 
 Where FMC.md is silent, these choices keep the documented model intact with the least machinery.
 
@@ -89,15 +88,14 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 11. **Models (verified live 2026-09-29).** Groq `openai/gpt-oss-120b` for text (strict JSON schema; rated an open manhole HIGH where 20b said MEDIUM). Gemini `gemini-3.5-flash-lite` → `gemini-3.5-flash` ordered fallback for vision and text fallback (other 3.x Flash models returned 503/timeouts under load). `gemini-embedding-2` at 768 dims (auto-normalised). Model ids are configurable because providers retire them.
 12. **Knowledge base stays current.** Department routing answers come from a directory generated from the live tables at each sync; static docs cover process. Sync embeds only changed chunks (hash-checked).
 13. **Neon scale-to-zero.** Both services keep no idle database connections, so pooled connections do not keep waking the database.
+14. **Sign-in lockout.** Ten wrong passwords for one account within ten minutes block further attempts on that account for the rest of the window; successful sign-ins never count. Like the AI rate limit and the analysis scheduler, it is kept in memory, which suits the single backend instance FMC runs.
+15. **Complete scoped search.** Vector searches limited to a citizen's or officer's complaints scan the HNSW index iteratively (pgvector 0.8+), so the scope filter cannot hide matches once the table grows.
 
-## Current state
+## Verification
 
-```text
-Current Step:          Complete: every FMC requirement implemented and verified
-Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage; FastAPI AI service; backend ↔ AI integration; React frontend (browser-verified end to end); container images and CI for all three services; final audit against FMC.md
-Manual Action Required: None
-Tests Passed:          Backend 44/44; AI service 19/19; frontend 9/9 (locally and in GitHub Actions); browser end-to-end on desktop and phone in both themes
-Tests Failed:          —
-Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
-Verification data:     Runtime checks on Neon created citizens and an officer with @fixmycity.test emails, and the browser run left four test photos in B2; removal waits for the owner's approval
-```
+- **Automated tests**, run by GitHub Actions on every push: backend 48 (Spring Boot with PostgreSQL + pgvector in Testcontainers), AI service 22 (FastAPI with the same migrations in Testcontainers), frontend 13 (Vitest).
+- **End-to-end checks** against the running stack with the real Backblaze B2, Gemini and Groq services on a disposable database: 95 API checks covering registration and sign-in, forged, expired and unsigned tokens, the sign-in lockout, validation and upload limits, idempotent submission, live AI analysis, the writing assistant, RAG answers and semantic search, cross-user access attempts, the full lifecycle with a reopen round, concurrent updates, plain error messages, and outages of the AI service, the database and B2.
+- **Browser checks** of every citizen, officer and admin flow at desktop and phone widths in light and dark themes, including session expiry, an unreachable backend and the retry that follows.
+- **Containers**: the three images build, the Compose stack reports healthy against the real services, and nginx serves the app with its security headers.
+- **Verification data**: runtime checks on Neon created citizens and an officer with `@fixmycity.test` emails, and browser and end-to-end runs left test photos in the B2 bucket. They are clearly marked and safe to remove.
+- **Known limits**: the rate limits and the AI analysis scheduler live in one backend instance's memory; scaling the backend out would need a shared store for them.

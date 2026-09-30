@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
 
 # Java / Maven
 Backend/target/
@@ -17,9 +20,12 @@ __pycache__/
 Frontend/node_modules/
 Frontend/dist/
 
-# Generated
-graphify-out/
+# Generated, test and temporary output
+coverage/
+htmlcov/
+.coverage
 *.log
+*.tmp
 
 # Editor / OS
 .idea/
