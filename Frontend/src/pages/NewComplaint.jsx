@@ -161,6 +161,7 @@ export default function NewComplaint() {
         <fieldset className="field" aria-describedby={errors.categoryId ? 'category-error' : undefined}>
           <legend className="label">Category</legend>
           {categories.error && <ErrorNotice error={categories.error} />}
+          {categories.loading && !categories.data && <p className="muted">Loading categories…</p>}
           <div className="choices" style={{ marginTop: 8 }}>
             {(categories.data ?? []).map((category) => (
               <label key={category.id} className="choice">

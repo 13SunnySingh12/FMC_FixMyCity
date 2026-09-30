@@ -20,11 +20,21 @@ export default function ComplaintDetail() {
   )
   useTitle(complaint ? `${complaintNumber(complaint.id)} ${complaint.title}` : 'Complaint')
 
-  // AI analysis runs on the server; poll while it works. A refresh simply picks the state up again.
+  // AI analysis runs on the server; poll while it works: often at first, then every 30 seconds while retries run.
   const aiRunning = complaint && ['PENDING', 'PROCESSING'].includes(complaint.ai.status)
+  const polls = useRef(0)
   useEffect(() => {
-    if (!aiRunning) return
-    const timer = setTimeout(() => reload(), 4000)
+    if (!aiRunning) {
+      polls.current = 0
+      return
+    }
+    const timer = setTimeout(
+      () => {
+        polls.current += 1
+        reload()
+      },
+      polls.current < 15 ? 4000 : 30000,
+    )
     return () => clearTimeout(timer)
   }, [aiRunning, complaint, reload])
 
@@ -46,7 +56,9 @@ export default function ComplaintDetail() {
     return (
       <div className="page">
         {back}
-        <ErrorNotice error={error.status === 404 ? { message: 'This complaint does not exist or is not visible to you.' } : error} />
+        <ErrorNotice
+          error={[400, 404].includes(error.status) ? { message: 'This complaint does not exist or is not visible to you.' } : error}
+        />
       </div>
     )
   }
@@ -106,6 +118,7 @@ export default function ComplaintDetail() {
       <ComplaintActions
         complaint={c}
         user={user}
+        onStale={reload}
         onDone={(updated, text) => {
           setData(updated)
           setMessage(text)
@@ -261,7 +274,7 @@ function AiPanel({ complaint, staff, isAdmin }) {
     return (
       <Notice tone="attention">
         <h2>AI analysis could not be completed</h2>
-        <p>The complaint is still handled normally by staff.{isAdmin && ai.error ? ` Last error: ${ai.error}.` : ''}</p>
+        <p>The complaint is still handled normally by staff.{isAdmin && ai.error ? ` Reason: ${ai.error}` : ''}</p>
       </Notice>
     )
   }

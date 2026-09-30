@@ -49,8 +49,9 @@ function fallbackMessage(status) {
   if (status === 401) return 'Please sign in to continue.'
   if (status === 403) return 'You do not have access to this.'
   if (status === 404) return 'Not found.'
-  if (status === 413) return 'That file is too large.'
+  if (status === 413) return 'That file is too large. Each photo must be 5 MB or smaller.'
   if (status === 429) return 'Too many requests. Please wait a minute and try again.'
+  if (status === 502 || status === 503 || status === 504) return 'FixMyCity is temporarily unavailable. Please try again in a moment.'
   return 'Something went wrong. Please try again.'
 }
 

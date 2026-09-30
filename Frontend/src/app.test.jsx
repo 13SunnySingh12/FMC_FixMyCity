@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { api, ApiError, setUnauthorizedHandler } from './api.js'
+import { AuthContext } from './authContext.js'
 import { ComplaintActions } from './components/ComplaintActions.jsx'
+import { RequireAuth } from './components/RequireAuth.jsx'
 import { Route } from './components/ui.jsx'
+import SignIn from './pages/SignIn.jsx'
 import { complaintNumber } from './format.js'
 
 afterEach(() => {
@@ -84,4 +88,53 @@ describe('the API client', () => {
 
 it('numbers complaints like a plate', () => {
   expect([complaintNumber(7), complaintNumber(123456)]).toEqual(['FMC-00007', 'FMC-123456'])
+})
+
+describe('failure states people can understand', () => {
+  it('explains a gateway error instead of a generic failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>Bad Gateway</html>', { status: 502 })))
+    const error = await api.get('/complaints').catch((e) => e)
+    expect(error.message).toBe('FixMyCity is temporarily unavailable. Please try again in a moment.')
+  })
+
+  it('uploads only the photos the picker shows after a rejected choice', () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    render(<ComplaintActions complaint={complaint('IN_PROGRESS', ['UPLOAD_PROOF'])} user={{ role: 'OFFICER' }} onDone={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Upload resolution proof' }))
+    const picker = screen.getByLabelText('Photos of the finished work')
+    fireEvent.change(picker, { target: { files: [new File(['x'], 'done.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.change(picker, { target: { files: [new File(['x'], 'notes.pdf', { type: 'application/pdf' })] } })
+
+    screen.getByText('notes.pdf is not a JPEG, PNG or WebP photo of 5 MB or less.')
+    fireEvent.click(screen.getByRole('button', { name: 'Upload photos' }))
+    screen.getByText('Choose at least one photo.')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('tells people when their session has ended', () => {
+    render(
+      <AuthContext.Provider value={{ user: null, login: vi.fn(), sessionEnded: true }}>
+        <MemoryRouter>
+          <SignIn />
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+    screen.getByText('Your session has ended. Please sign in again.')
+  })
+
+  it('offers a retry when the session check cannot reach the server', () => {
+    const checkSession = vi.fn()
+    const offline = new ApiError(0, 'Cannot reach FixMyCity. Check your connection and try again.')
+    render(
+      <AuthContext.Provider value={{ user: undefined, checkError: offline, checkSession }}>
+        <MemoryRouter>
+          <RequireAuth />
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    )
+    screen.getByText('Cannot reach FixMyCity. Check your connection and try again.')
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(checkSession).toHaveBeenCalledOnce()
+  })
 })

@@ -74,7 +74,10 @@ export default function Search() {
             {results.complaints.length ? (
               <ComplaintRows items={results.complaints.map((hit) => hit.complaint)} staff={user.role !== 'CITIZEN'} showOfficer={user.role === 'ADMIN'} />
             ) : (
-              <p className="muted">No complaints related to “{results.q}”.</p>
+              <p className="muted">
+                No complaints related to “{results.q}”. New complaints become searchable once their AI analysis
+                finishes.
+              </p>
             )}
           </section>
           <section className="section" aria-labelledby="guidance-results">

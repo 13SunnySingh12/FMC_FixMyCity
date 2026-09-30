@@ -11,7 +11,7 @@ const MAX_PROOFS = 5
  * The complaint's next step. The server lists what this user may do (`actions`); the most important one is the
  * single green sign, the rest are plain signs. Each opens its own inline form.
  */
-export function ComplaintActions({ complaint, user, onDone }) {
+export function ComplaintActions({ complaint, user, onDone, onStale }) {
   const [open, setOpen] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -29,6 +29,8 @@ export function ComplaintActions({ complaint, user, onDone }) {
       onDone(updated, message)
     } catch (err) {
       setError(err)
+      // A conflict means the complaint changed underneath us: show its current state with the message.
+      if (err.status === 409) onStale?.()
     } finally {
       setBusy(false)
     }
@@ -252,9 +254,15 @@ function ProofForm({ busy, remaining, onSubmit }) {
             accept={IMAGE_TYPES.join(',')}
             onChange={(event) => {
               const chosen = [...event.target.files]
-              if (chosen.length > remaining) return setError(`You can add ${remaining} more photo${remaining === 1 ? '' : 's'}.`)
+              // A rejected choice clears the selection, so what uploads is always what the picker shows.
+              const reject = (message) => {
+                event.target.value = ''
+                setFiles([])
+                setError(message)
+              }
+              if (chosen.length > remaining) return reject(`You can add ${remaining} more photo${remaining === 1 ? '' : 's'}.`)
               const bad = chosen.find((file) => !IMAGE_TYPES.includes(file.type) || file.size > 5 * 1024 * 1024)
-              if (bad) return setError(`${bad.name} is not a JPEG, PNG or WebP photo of 5 MB or less.`)
+              if (bad) return reject(`${bad.name} is not a JPEG, PNG or WebP photo of 5 MB or less.`)
               setError(null)
               setFiles(chosen)
             }}
@@ -300,6 +308,10 @@ function AssignForm({ complaint, user, busy, onSubmit }) {
   const [note, setNote] = useState('')
   const [error, setError] = useState(null)
   const choices = (officers.data ?? []).filter((officer) => officer.id !== user.id && officer.id !== complaint.assignedOfficer?.id)
+  const noOfficers = departmentId && officers.data && choices.length === 0
+  const officerHint = noOfficers
+    ? `No other active officer works in this department yet. Send it to the department's queue${user.role === 'ADMIN' ? ', or add an officer under People first' : ''}.`
+    : "Leave the department's queue to assign it later, or choose an active officer now."
 
   return (
     <form
@@ -332,7 +344,7 @@ function AssignForm({ complaint, user, busy, onSubmit }) {
           </select>
         )}
       </Field>
-      <Field label="Officer" hint="Leave the department's queue to assign it later, or choose an active officer now.">
+      <Field label="Officer" hint={officerHint}>
         {(props) => (
           <select {...props} className="input" value={officerId} onChange={(e) => setOfficerId(e.target.value)} disabled={!departmentId}>
             <option value="">No officer yet (department queue)</option>

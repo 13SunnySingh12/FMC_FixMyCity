@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { homeFor, useAuth } from '../authContext.js'
-import { ErrorNotice, Field } from '../components/ui.jsx'
+import { ErrorNotice, Field, Notice } from '../components/ui.jsx'
 import { useTitle } from '../useTitle.js'
 
 export default function SignIn() {
   useTitle('Sign in')
-  const { user, login } = useAuth()
+  const { user, login, sessionEnded } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -41,6 +41,7 @@ export default function SignIn() {
         </div>
       </div>
       <form className="form panel" onSubmit={submit}>
+        {sessionEnded && !error && <Notice live>Your session has ended. Please sign in again.</Notice>}
         <ErrorNotice error={error} />
         <Field label="Email">
           {(props) => (
