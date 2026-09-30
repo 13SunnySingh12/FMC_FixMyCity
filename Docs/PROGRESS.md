@@ -9,15 +9,15 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
 | 1 | Registration & login | Backend `auth` (BCrypt, JWT in httpOnly cookie), Frontend login/register | MockMvc auth tests; runtime check on Neon ✓; browser E2E pending | [→] |
-| 2 | Create complaint (title, description, category, location, image) | `POST /api/complaints` (multipart), `complaints` table | Integration test; E2E | [ ] |
-| 3 | Category selection | `categories` table (seeded), `GET /api/categories` | Integration test | [ ] |
-| 4 | Image upload → B2 `complaints/{complaintId}/{fileName}` | `StorageService` (S3 API), `complaint_attachments` | Real B2 upload + signed-URL fetch | [ ] |
-| 5 | Location submission | `complaints.location` | Validation test | [ ] |
-| 6 | Complaint tracking | `GET /api/complaints` (citizen scope) | Scope tests; E2E | [ ] |
-| 7 | Status timeline (Submitted → Assigned → In Progress → Resolved → Closed) | `complaint_status_history` | Lifecycle test | [ ] |
-| 8 | Complaint history | Citizen list page | E2E | [ ] |
-| 9 | Reopen resolved complaint | `POST /api/complaints/{id}/reopen` (RESOLVED → ASSIGNED) | Lifecycle test | [ ] |
-| 10 | Resolution feedback | `POST /api/complaints/{id}/feedback` (RESOLVED → CLOSED) | Lifecycle test | [ ] |
+| 2 | Create complaint (title, description, category, location, image) | `POST /api/complaints` (multipart, idempotent via requestId) | API verified on Neon + B2; UI pending | [→] |
+| 3 | Category selection | Seeded categories, `GET /api/categories` | API verified on Neon + B2; UI pending | [→] |
+| 4 | Image upload → B2 `complaints/{complaintId}/{fileName}` | `StorageService` (B2 S3 API) → `complaints/{id}/{uuid}.{ext}`; signature-checked, ≤ 5 MB | Real B2 upload, byte-identical signed-URL fetch, unsigned 401 ✓; UI pending | [→] |
+| 5 | Location submission | `complaints.location` (required) | API verified on Neon + B2; UI pending | [→] |
+| 6 | Complaint tracking | `GET /api/complaints` scoped to the caller | API verified on Neon + B2; UI pending | [→] |
+| 7 | Status timeline (Submitted → Assigned → In Progress → Resolved → Closed) | `complaint_status_history` with actor and note | API verified on Neon + B2; UI pending | [→] |
+| 8 | Complaint history | Paged, filterable history list | API verified on Neon + B2; UI pending | [→] |
+| 9 | Reopen resolved complaint | `POST …/reopen` (RESOLVED → ASSIGNED; inactive officer → department queue) | Lifecycle tests ✓; UI pending | [→] |
+| 10 | Resolution feedback | `POST …/feedback` (RESOLVED → CLOSED, one per complaint) | API verified on Neon + B2; UI pending | [→] |
 
 ## AI (FMC B.11–B.20)
 
@@ -36,13 +36,13 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
 | 21 | Officer login | Shared auth, role `OFFICER` | Auth + officer tests ✓ | [✓] |
-| 22 | Officer dashboard | Assigned complaints, status & priority | E2E | [ ] |
-| 23 | View assigned complaint (image, location, AI analysis) | Detail endpoint with signed URLs | Authorization tests | [ ] |
-| 24 | Update status | ASSIGNED → IN_PROGRESS → RESOLVED | Lifecycle test | [ ] |
-| 25 | Investigation notes | `complaint_notes` | Integration test | [ ] |
-| 26 | Resolution proof → B2 `resolution-proofs/{complaintId}/{fileName}` | `StorageService`, `complaint_attachments` | Real B2 run | [ ] |
-| 27 | Mark resolved (requires note + proof) | Server-side rule | Negative test | [ ] |
-| 28 | Reassign to officer or department | `POST /api/complaints/{id}/assignment` (admin, or currently assigned officer) | Authorization tests | [ ] |
+| 22 | Officer dashboard | `GET /api/complaints` scoped to the assigned officer, status/priority filters | API verified on Neon + B2; UI pending | [→] |
+| 23 | View assigned complaint (image, location, AI analysis) | Detail with signed image URLs, AI analysis, allowed actions | API verified on Neon + B2; UI pending | [→] |
+| 24 | Update status | `…/start`, `…/resolve` | API verified on Neon + B2; UI pending | [→] |
+| 25 | Investigation notes | `POST …/notes` | API verified on Neon + B2; UI pending | [→] |
+| 26 | Resolution proof → B2 `resolution-proofs/{complaintId}/{fileName}` | `POST …/proofs` → `resolution-proofs/{id}/{uuid}.{ext}` (max 5) | API verified on Neon + B2; UI pending | [→] |
+| 27 | Mark resolved (requires note + proof) | Requires note + proof added since the latest (re)assignment | Negative tests + real run (409 without evidence) ✓; UI pending | [→] |
+| 28 | Reassign to officer or department | `POST …/assignment` — officer or department target | Lifecycle tests ✓; UI pending | [→] |
 
 ## Admin (FMC D.29–D.36)
 
@@ -52,8 +52,8 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 | 30 | User (citizen) management | `GET/PATCH /api/admin/users` — paged list, activate/deactivate (immediate) | Integration tests ✓; UI pending | [→] |
 | 31 | Officer management | `POST /api/admin/officers`, department change, activate/deactivate | Integration tests ✓; UI pending | [→] |
 | 32 | Department management | `/api/admin/departments` CRUD, delete blocked when in use | Integration tests ✓; UI pending | [→] |
-| 33 | Complaint management | All complaints, filters, edit category/priority, close, retry AI | Integration test | [ ] |
-| 34 | Complaint assignment | Assign to department or officer | Lifecycle test | [ ] |
+| 33 | Complaint management | All complaints with filters; edit category/priority; close | Integration tests ✓; UI pending | [→] |
+| 34 | Complaint assignment | `POST …/assignment` by admin | API verified on Neon + B2; UI pending | [→] |
 | 35 | Category management | `/api/admin/categories` CRUD with department routing | Integration tests ✓; UI pending | [→] |
 | 36 | Basic analytics | Totals, pending, resolved, by category, by priority | Integration test | [ ] |
 
@@ -61,8 +61,8 @@ Legend: `[✓]` done & verified · `[→]` in progress · `[ ]` pending · `[!]`
 
 | Requirement | Implementation | Status |
 |---|---|---|
-| Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC) from header or httpOnly cookie, BCrypt, roles reloaded from DB per request, `/api/admin/**` admin-only; per-complaint ownership pending | [→] |
-| B2 private bucket; backend-only credentials; short-lived signed URLs | AWS SDK v2 S3 client + presigner | [ ] |
+| Spring Security, JWT, password hashing, RBAC | Resource-server JWT (HMAC) from header or httpOnly cookie, BCrypt, roles reloaded from DB per request, `/api/admin/**` admin-only, per-complaint ownership (invisible complaints return 404) | [✓] |
+| B2 private bucket; backend-only credentials; short-lived signed URLs | AWS SDK v2 S3 client + presigner (10-minute URLs, issued only after an access check); uploads removed if the transaction rolls back | [✓] |
 | Spring Boot ↔ FastAPI over REST | `RestClient` + shared internal API key | [ ] |
 | Neon PostgreSQL + pgvector, one database | Flyway migrations owned by the backend (`V1__schema`, `V2__reference_data`) — applied to Neon and verified with the Neon MCP (pgvector 0.8.6, HNSW indexes, routing seed) | [✓] |
 | Long-running AI work survives browser/server restarts | Persistent `ai_status` + background worker with retries and startup recovery | [ ] |
@@ -88,10 +88,10 @@ Where FMC.md is silent, these choices keep the documented model intact with the 
 ## Current state
 
 ```text
-Current Step:          Complaint lifecycle with B2 image storage
-Completed:             Foundation; schema on Neon; credentials verified live (Neon, B2 private bucket, Gemini, Groq); authentication
+Current Step:          FastAPI AI service
+Completed:             Foundation; schema on Neon; live credential checks; authentication; departments, categories and accounts; complaint lifecycle with B2 storage
 Manual Action Required: None
-Tests Passed:          Backend 25/25 (schema, config, auth, admin management); auth runtime-verified on Neon
+Tests Passed:          Backend 34/34; auth and full complaint lifecycle runtime-verified on Neon + B2
 Tests Failed:          —
 Known Issues:          JDK 21 notice about Mockito's dynamically loaded agent (test-only, harmless)
 Verification data:     Runtime checks create citizens with @fixmycity.test emails (clearly marked, safe to remove)

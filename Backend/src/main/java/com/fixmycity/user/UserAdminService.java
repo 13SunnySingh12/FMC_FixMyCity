@@ -6,6 +6,8 @@ import com.fixmycity.auth.AuthService;
 import com.fixmycity.common.ApiException;
 import com.fixmycity.common.PageResponse;
 import com.fixmycity.common.Text;
+import com.fixmycity.complaint.ComplaintRepository;
+import com.fixmycity.complaint.ComplaintStatus;
 import com.fixmycity.department.DepartmentService;
 
 import org.springframework.data.domain.PageRequest;
@@ -32,10 +34,14 @@ public class UserAdminService {
 
 	private final DepartmentService departments;
 
-	UserAdminService(UserRepository users, AuthService auth, DepartmentService departments) {
+	private final ComplaintRepository complaints;
+
+	UserAdminService(UserRepository users, AuthService auth, DepartmentService departments,
+			ComplaintRepository complaints) {
 		this.users = users;
 		this.auth = auth;
 		this.departments = departments;
+		this.complaints = complaints;
 	}
 
 	@Transactional(readOnly = true)
@@ -62,15 +68,29 @@ public class UserAdminService {
 			if (!active && user.getId().equals(actorId)) {
 				throw ApiException.badRequest("You cannot deactivate your own account.");
 			}
+			if (!active) {
+				requireNoOpenWork(user);
+			}
 			user.setActive(active);
 		}
 		if (departmentId != null) {
 			if (user.getRole() != Role.OFFICER) {
 				throw ApiException.badRequest("Only officers belong to a department.");
 			}
+			if (!departmentId.equals(user.getDepartment().getId())) {
+				requireNoOpenWork(user);
+			}
 			user.setDepartment(this.departments.department(departmentId));
 		}
 		return UserResponse.from(user);
+	}
+
+	/** An officer's active complaints must be reassigned first, or they would be left without an owner. */
+	private void requireNoOpenWork(User user) {
+		if (user.getRole() == Role.OFFICER
+				&& this.complaints.existsByAssignedOfficerIdAndStatusIn(user.getId(), ComplaintStatus.ACTIVE_WORK)) {
+			throw ApiException.conflict("Reassign this officer's open complaints first.");
+		}
 	}
 
 	/** Active officers, for assignment and reassignment pickers. */

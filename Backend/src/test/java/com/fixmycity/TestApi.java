@@ -10,7 +10,7 @@ import jakarta.servlet.http.Cookie;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 /** Drives the real API as each role, so tests exercise the same security rules as production. */
@@ -86,7 +86,7 @@ public class TestApi {
 		return perform(MockMvcRequestBuilders.delete(path), session);
 	}
 
-	public ResultActions perform(MockHttpServletRequestBuilder request, Session session) throws Exception {
+	public ResultActions perform(AbstractMockHttpServletRequestBuilder<?> request, Session session) throws Exception {
 		return this.mvc.perform((session == null) ? request : request.cookie(session.cookie()));
 	}
 
