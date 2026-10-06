@@ -69,6 +69,11 @@ function EditableRow({ item, kind, summary, departments, onChanged }) {
   const [mode, setMode] = useState(null) // null | 'edit' | 'delete'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // An error belongs to the attempt that caused it; opening or cancelling a form clears it.
+  const show = (next) => {
+    setError(null)
+    setMode(next)
+  }
 
   async function act(request) {
     setBusy(true)
@@ -98,7 +103,7 @@ function EditableRow({ item, kind, summary, departments, onChanged }) {
             departments={departments}
             busy={busy}
             submitLabel="Save changes"
-            onCancel={() => setMode(null)}
+            onCancel={() => show(null)}
             onSubmit={(body) => act(() => api.put(`${endpoint(kind)}/${item.id}`, body))}
           />
         )}
@@ -110,16 +115,16 @@ function EditableRow({ item, kind, summary, departments, onChanged }) {
               <button type="button" className="sign sign--stop sign--small" disabled={busy} onClick={() => act(() => api.delete(`${endpoint(kind)}/${item.id}`))}>
                 Delete {item.name}
               </button>
-              <button type="button" className="sign sign--quiet sign--small" onClick={() => setMode(null)}>
+              <button type="button" className="sign sign--quiet sign--small" onClick={() => show(null)}>
                 Cancel
               </button>
             </>
           ) : (
             <>
-              <button type="button" className="sign sign--plain sign--small" onClick={() => setMode('edit')}>
+              <button type="button" className="sign sign--plain sign--small" onClick={() => show('edit')}>
                 Edit
               </button>
-              <button type="button" className="sign sign--quiet sign--small" onClick={() => setMode('delete')}>
+              <button type="button" className="sign sign--quiet sign--small" onClick={() => show('delete')}>
                 Delete
               </button>
             </>
@@ -150,7 +155,10 @@ function AddForm({ kind, departments, onAdded }) {
         departments={departments}
         busy={busy}
         submitLabel={`Add ${kind}`}
-        onCancel={() => setOpen(false)}
+        onCancel={() => {
+          setError(null)
+          setOpen(false)
+        }}
         onSubmit={async (body) => {
           setBusy(true)
           setError(null)

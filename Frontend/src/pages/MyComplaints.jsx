@@ -45,21 +45,19 @@ export default function MyComplaints() {
           <ComplaintRows items={data.items} />
           <Pager data={data} onPage={setPage} />
         </>
-      ) : status ? (
+      ) : error ? null : status ? (
         <Empty title={`Nothing ${STATUS_LABEL[status].toLowerCase()}`}>No complaint of yours is at this stage right now.</Empty>
       ) : (
-        !error && (
-          <Empty
-            title="You haven't reported anything yet"
-            action={
-              <Link className="sign sign--go" to="/complaints/new">
-                Report a problem
-              </Link>
-            }
-          >
-            When you report a civic problem, you can follow it here from submission to the fix.
-          </Empty>
-        )
+        <Empty
+          title="You haven't reported anything yet"
+          action={
+            <Link className="sign sign--go" to="/complaints/new">
+              Report a problem
+            </Link>
+          }
+        >
+          When you report a civic problem, you can follow it here from submission to the fix.
+        </Empty>
       )}
     </div>
   )

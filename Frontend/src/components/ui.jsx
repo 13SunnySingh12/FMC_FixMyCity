@@ -52,7 +52,7 @@ export function Route({ status, counts }) {
 export function RouteMini({ status }) {
   const index = STATUS_ORDER.indexOf(status)
   return (
-    <span className="row__status">
+    <span>
       <span className="route-mini" aria-hidden="true">
         {STATUS_ORDER.map((stage, i) => (
           <span key={stage} className={i < index ? 'on' : i === index ? 'now' : ''} />

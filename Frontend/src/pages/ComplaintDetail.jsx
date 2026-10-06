@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ArrowLeftIcon, ClockIcon, MapPinIcon, TagIcon, UserIcon } from '@phosphor-icons/react'
 import { listFor, useAuth } from '../authContext.js'
 import { ComplaintActions } from '../components/ComplaintActions.jsx'
@@ -12,16 +12,26 @@ export default function ComplaintDetail() {
   const { id } = useParams()
   const { user } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const notice = useRef(null)
   const focusNotice = useRef(false)
-  const { data: complaint, error, loading, reload, setData } = useResource(`/complaints/${id}`)
+  // Complaint ids are numbers; anything else in the address is not a complaint and is never sent to the server.
+  const known = /^\d+$/.test(id)
+  const { data: complaint, error, loading, reload, setData } = useResource(known ? `/complaints/${id}` : null)
   const [message, setMessage] = useState(
     location.state?.justSubmitted ? 'Complaint submitted. It will be analysed and assigned to the right department.' : null,
   )
   useTitle(complaint ? `${complaintNumber(complaint.id)} ${complaint.title}` : 'Complaint')
 
+  // The "submitted" confirmation belongs to that one arrival; drop it from history so a reload does not repeat it.
+  useEffect(() => {
+    if (location.state?.justSubmitted) navigate(location.pathname, { replace: true, state: null })
+  }, [location, navigate])
+
   // AI analysis runs on the server; poll while it works: often at first, then every 30 seconds while retries run.
-  const aiRunning = complaint && ['PENDING', 'PROCESSING'].includes(complaint.ai.status)
+  // An outage does not end the polling; a complaint that is no longer visible (handed to someone else) does.
+  const gone = error?.status >= 400 && error?.status < 500
+  const aiRunning = complaint && !gone && ['PENDING', 'PROCESSING'].includes(complaint.ai.status)
   const polls = useRef(0)
   useEffect(() => {
     if (!aiRunning) {
@@ -36,7 +46,7 @@ export default function ComplaintDetail() {
       polls.current < 15 ? 4000 : 30000,
     )
     return () => clearTimeout(timer)
-  }, [aiRunning, complaint, reload])
+  }, [aiRunning, complaint, error, reload])
 
   // After an action the finished form unmounts; move focus to its result instead of dropping it on the page.
   useEffect(() => {
@@ -52,13 +62,12 @@ export default function ComplaintDetail() {
     </Link>
   )
 
-  if (error && !complaint) {
+  if (!known || (error && !complaint)) {
+    const missing = !known || [400, 404].includes(error.status)
     return (
       <div className="page">
         {back}
-        <ErrorNotice
-          error={[400, 404].includes(error.status) ? { message: 'This complaint does not exist or is not visible to you.' } : error}
-        />
+        <ErrorNotice error={missing ? { message: 'This complaint does not exist or is not visible to you.' } : error} />
       </div>
     )
   }
@@ -287,7 +296,7 @@ function AiPanel({ complaint, staff, isAdmin }) {
         <div>
           <dt>Suggested category</dt>
           <dd>
-            {ai.categoryName}
+            {ai.categoryName ?? 'No longer available'}
             {categoryDiffers && <span className="tag"> (reported as {complaint.categoryName})</span>}
           </dd>
         </div>
@@ -299,7 +308,7 @@ function AiPanel({ complaint, staff, isAdmin }) {
         </div>
         <div>
           <dt>Suggested department</dt>
-          <dd>{ai.departmentName}</dd>
+          <dd>{ai.departmentName ?? 'No longer available'}</dd>
         </div>
       </dl>
       <div className="section">

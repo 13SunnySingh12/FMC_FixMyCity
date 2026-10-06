@@ -46,7 +46,7 @@ export default function Overview() {
             <Route counts={data.byStatus} />
           </section>
 
-          <div className="split" style={{ gridTemplateColumns: undefined }}>
+          <div className="split">
             <section className="section">
               <h2>By category</h2>
               <Bars rows={data.byCategory.map(({ name, count }) => [name, count])} />

@@ -5,7 +5,6 @@ import { useResource } from '../useResource.js'
 import { ErrorNotice, Field } from './ui.jsx'
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_PROOFS = 5
 
 /**
  * The complaint's next step. The server lists what this user may do (`actions`); the most important one is the
@@ -92,7 +91,7 @@ export function ComplaintActions({ complaint, user, onDone, onStale }) {
       {open === 'UPLOAD_PROOF' && (
         <ProofForm
           busy={busy}
-          remaining={MAX_PROOFS - complaint.proofs.length}
+          remaining={complaint.proofsRemaining}
           onSubmit={(form) => run(() => api.upload(`${path}/proofs`, form), 'Resolution proof uploaded.')}
         />
       )}
@@ -102,7 +101,12 @@ export function ComplaintActions({ complaint, user, onDone, onStale }) {
           complaint={complaint}
           user={user}
           busy={busy}
-          onSubmit={(body) => run(() => api.post(`${path}/assignment`, body), 'Assignment updated.')}
+          onSubmit={(body) =>
+            run(
+              () => api.post(`${path}/assignment`, body),
+              user.role === 'OFFICER' ? 'Handed over. The complaint has left your queue.' : 'Assignment updated.',
+            )
+          }
         />
       )}
       {open === 'EDIT' && <EditForm complaint={complaint} busy={busy} onSubmit={(body) => run(() => api.patch(path, body), 'Complaint updated.')} />}
@@ -308,6 +312,8 @@ function AssignForm({ complaint, user, busy, onSubmit }) {
   const [note, setNote] = useState('')
   const [error, setError] = useState(null)
   const choices = (officers.data ?? []).filter((officer) => officer.id !== user.id && officer.id !== complaint.assignedOfficer?.id)
+  // Officers who share a name are told apart by their work email.
+  const namesake = (officer) => choices.some((other) => other.id !== officer.id && other.name === officer.name)
   const noOfficers = departmentId && officers.data && choices.length === 0
   const officerHint = noOfficers
     ? `No other active officer works in this department yet. Send it to the department's queue${user.role === 'ADMIN' ? ', or add an officer under People first' : ''}.`
@@ -351,6 +357,7 @@ function AssignForm({ complaint, user, busy, onSubmit }) {
             {choices.map((officer) => (
               <option key={officer.id} value={officer.id}>
                 {officer.name}
+                {namesake(officer) && officer.email ? ` (${officer.email})` : ''}
               </option>
             ))}
           </select>

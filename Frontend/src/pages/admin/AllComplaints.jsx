@@ -11,7 +11,7 @@ export default function AllComplaints() {
   useTitle('All complaints')
   const [params, setParams] = useSearchParams()
   const filters = Object.fromEntries(FILTERS.map((key) => [key, params.get(key) ?? '']))
-  const page = Number(params.get('page') ?? 0)
+  const page = Math.max(0, Number.parseInt(params.get('page') ?? '', 10) || 0)
   const { data, error, loading } = useResource('/complaints', { ...filters, page, size: 20 })
   const categories = useResource('/categories')
   const departments = useResource('/departments')

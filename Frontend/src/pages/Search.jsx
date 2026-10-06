@@ -84,8 +84,8 @@ export default function Search() {
             <h2 id="guidance-results">Civic guidance</h2>
             {results.knowledge.length ? (
               <ul className="rows">
-                {results.knowledge.map((hit) => (
-                  <li key={`${hit.source}-${hit.title}`} className="row">
+                {results.knowledge.map((hit, i) => (
+                  <li key={i} className="row">
                     <span className="row__title">{hit.title}</span>
                     <p className="small">{hit.content.length > 260 ? `${hit.content.slice(0, 260).trimEnd()}…` : hit.content}</p>
                   </li>

@@ -35,10 +35,18 @@ async function request(method, path, { body, params, form } = {}) {
   if (response.status === 401 && !path.startsWith('/auth/')) {
     onUnauthorized()
   }
-  if (response.status === 204) {
-    return null
+  // An empty body is a valid answer (204, 202). Anything else must be JSON.
+  const text = await response.text().catch(() => '')
+  let data = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      if (response.ok) {
+        throw new ApiError(response.status, 'FixMyCity is not responding correctly. Please try again in a moment.')
+      }
+    }
   }
-  const data = await response.json().catch(() => null)
   if (!response.ok) {
     throw new ApiError(response.status, data?.detail || fallbackMessage(response.status), data?.errors || {})
   }

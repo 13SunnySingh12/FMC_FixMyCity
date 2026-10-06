@@ -29,7 +29,15 @@ export default function People() {
           <p>Citizen accounts and the officers who work on complaints.</p>
         </div>
         {role === 'OFFICER' && (
-          <button type="button" className="sign sign--go" aria-expanded={adding} onClick={() => setAdding((open) => !open)}>
+          <button
+            type="button"
+            className="sign sign--go"
+            aria-expanded={adding}
+            onClick={() => {
+              setMessage(null)
+              setAdding((open) => !open)
+            }}
+          >
             <PlusIcon aria-hidden="true" /> Add an officer
           </button>
         )}
@@ -43,6 +51,7 @@ export default function People() {
           setRole(value)
           setPage(0)
           setAdding(false)
+          setMessage(null)
         }}
       />
 
@@ -153,7 +162,14 @@ function PersonRow({ person, departments, onChanged }) {
               <button type="button" className="sign sign--stop sign--small" disabled={busy} onClick={() => change({ active: false })}>
                 Deactivate {person.name.split(' ')[0]}
               </button>
-              <button type="button" className="sign sign--quiet sign--small" onClick={() => setConfirming(false)}>
+              <button
+                type="button"
+                className="sign sign--quiet sign--small"
+                onClick={() => {
+                  setError(null)
+                  setConfirming(false)
+                }}
+              >
                 Cancel
               </button>
             </>
