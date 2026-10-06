@@ -66,6 +66,24 @@ def test_invalid_model_output_falls_through_to_the_next_provider(monkeypatch, em
     assert result.model.startswith("gemini:")
 
 
+def test_an_empty_model_response_falls_through_to_the_next_provider(monkeypatch, embeddings):
+    class EmptyGroq:
+        """A client whose completion carries no choices, as providers return when they filter an answer."""
+
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    return type("Completion", (), {"choices": []})()
+
+    monkeypatch.setattr(llm, "_groq", lambda: EmptyGroq)
+    monkeypatch.setattr(llm, "_gemini_json", lambda *a: triage_json())
+
+    result = analysis.analyze(AnalyzeRequest.model_validate(request()))
+
+    assert result.model.startswith("gemini:")
+
+
 def test_provider_errors_and_bad_json_are_skipped_until_all_fail(monkeypatch, embeddings):
     def connection_error(*args):
         raise httpx.ConnectError("unreachable")

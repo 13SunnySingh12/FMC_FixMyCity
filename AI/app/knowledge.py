@@ -137,6 +137,7 @@ def sync(pool: ConnectionPool, knowledge_dir: str) -> SyncResponse:
             )
         for source, index in stale:
             conn.execute("DELETE FROM knowledge_chunks WHERE source = %s AND chunk_index = %s", (source, index))
+    log.info("Knowledge base synced: %d embedded, %d deleted, %d total", len(changed), len(stale), len(desired))
     return SyncResponse(embedded=len(changed), deleted=len(stale), total=len(desired))
 
 

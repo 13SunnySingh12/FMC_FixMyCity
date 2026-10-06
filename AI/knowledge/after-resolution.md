@@ -2,7 +2,7 @@
 
 ## Resolution proof and investigation notes
 
-Before an officer can mark a complaint as resolved, FMC requires them to record their work: at least one investigation note describing what they found or did, and at least one resolution-proof photo showing the result. Up to five proof photos can be attached to a complaint. You can see the notes and proof on your complaint page.
+Before an officer can mark a complaint as resolved, FMC requires them to record their work: at least one investigation note describing what they found or did, and at least one resolution-proof photo showing the result. Up to five proof photos can be attached for each round of work. You can see the notes and proof on your complaint page.
 
 ## Reopening a complaint
 
@@ -14,4 +14,4 @@ When a complaint is Resolved and you are satisfied, choose "Confirm the fix": ra
 
 ## Reassignment to another officer or department
 
-Sometimes a complaint belongs with a different team, for example a road cave-in caused by a broken drain. The assigned officer or an administrator can reassign it to another officer, which keeps the status Assigned, or move it to another department, where it waits as Submitted until an officer there is assigned. The timeline records every reassignment and its reason.
+Sometimes a complaint belongs with a different team, for example a road cave-in caused by a broken drain. The assigned officer or an administrator can reassign it to another officer, which sets the status to Assigned, or move it to another department, where it waits as Submitted until an officer there is assigned. The timeline records every reassignment and its reason.

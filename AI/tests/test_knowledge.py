@@ -72,7 +72,7 @@ def test_assistant_answers_from_retrieved_passages_with_sources(kb, client, monk
     def fake_generate(system, prompt, schema, parse, image=None):
         seen["prompt"] = prompt
         return parse(
-            {"answer": "The Street Lighting & Electrical department handles them [1].", "cited": [1, 7]}
+            {"answer": "The Street Lighting & Electrical department handles them.", "cited": [1, 7]}
         ), "fake:model"
 
     monkeypatch.setattr(llm, "generate", fake_generate)

@@ -86,9 +86,10 @@ WRITE_SCHEMA = {
 
 ASSISTANT_SYSTEM = """You are the FMC civic assistant. Answer using only the numbered passages from the FMC civic
 knowledge base. If the passages do not contain the answer, say that the FMC knowledge base does not cover it and
-suggest submitting a complaint or contacting the relevant department. Refer to passages like [1] or [2].
+suggest submitting a complaint or contacting the relevant department.
 Keep the answer under 150 words. For emergencies, tell the user to contact local emergency services first.
-List the numbers of the passages you used in "cited"."""
+Do not write passage numbers in the answer: the sources are shown next to it. List the numbers of the passages
+you used in "cited"."""
 
 ASSISTANT_PROMPT = """Passages:
 {passages}

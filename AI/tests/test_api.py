@@ -1,7 +1,8 @@
+import psycopg
 import pytest
 from pydantic import ValidationError
 
-from app import analysis, llm
+from app import analysis, knowledge, llm
 from app.config import get_settings
 
 
@@ -67,6 +68,28 @@ def test_provider_outage_is_reported_as_503(client, monkeypatch):
 
     monkeypatch.setattr(analysis.llm, "generate", unavailable)
     assert client.post("/assist/write", json=write_request()).status_code == 503
+
+
+def test_database_outage_is_reported_as_503(client, monkeypatch):
+    def unreachable(*args, **kwargs):
+        raise psycopg.OperationalError("connection refused")
+
+    monkeypatch.setattr(knowledge, "search_knowledge", unreachable)
+    response = client.post("/search/knowledge", json={"query": "streetlight"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "The database is temporarily unavailable"}
+
+
+def test_a_connection_the_server_closed_is_replaced_instead_of_failing_the_request(client, database_url):
+    assert client.post("/search/knowledge", json={"query": "streetlight"}).status_code == 200
+    with psycopg.connect(database_url, autocommit=True) as conn:  # what a database restart does to the pool
+        conn.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity"
+            " WHERE pid <> pg_backend_pid() AND backend_type = 'client backend'"
+        )
+
+    assert client.post("/search/knowledge", json={"query": "streetlight"}).status_code == 200
 
 
 def test_input_limits_are_enforced_before_any_model_call(client):

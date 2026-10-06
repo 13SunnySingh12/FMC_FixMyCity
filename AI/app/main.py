@@ -34,13 +34,12 @@ log = logging.getLogger("fmc.ai")
 
 def _initial_sync(pool: ConnectionPool, knowledge_dir: str) -> None:
     try:
-        result = knowledge.sync(pool, knowledge_dir)
-        log.info(
-            "Knowledge base synced: %d embedded, %d deleted, %d total", result.embedded, result.deleted, result.total
-        )
+        knowledge.sync(pool, knowledge_dir)
     except (AIUnavailable, psycopg.Error, OSError) as ex:  # startup must not fail on a brief outage
+        # On a new database the tables do not exist until the backend has run its migrations.
         log.warning(
-            "Knowledge base sync failed at startup (%s); it can be re-run via /knowledge/sync", type(ex).__name__
+            "Knowledge base not synced at startup (%s); the backend runs the sync again when it starts",
+            type(ex).__name__,
         )
 
 
@@ -74,6 +73,12 @@ api = APIRouter(dependencies=[Depends(require_internal_key)])
 @app.exception_handler(AIUnavailable)
 def ai_unavailable(request: Request, ex: AIUnavailable) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": "AI providers are temporarily unavailable"})
+
+
+@app.exception_handler(psycopg.OperationalError)
+def database_unavailable(request: Request, ex: psycopg.OperationalError) -> JSONResponse:
+    log.warning("Database unavailable for %s: %s", request.url.path, type(ex).__name__)
+    return JSONResponse(status_code=503, content={"detail": "The database is temporarily unavailable"})
 
 
 @app.get("/health")
