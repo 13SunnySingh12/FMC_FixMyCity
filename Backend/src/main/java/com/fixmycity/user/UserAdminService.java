@@ -19,10 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserAdminService {
 
-	public record OfficerSummary(Long id, String name, Long departmentId, String departmentName) {
+	/** The work email tells apart officers who share a name. */
+	public record OfficerSummary(Long id, String name, String email, Long departmentId, String departmentName) {
 
 		static OfficerSummary from(User user) {
-			return new OfficerSummary(user.getId(), user.getName(), user.getDepartment().getId(),
+			return new OfficerSummary(user.getId(), user.getName(), user.getEmail(), user.getDepartment().getId(),
 					user.getDepartment().getName());
 		}
 

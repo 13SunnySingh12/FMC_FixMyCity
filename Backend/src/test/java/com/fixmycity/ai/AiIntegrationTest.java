@@ -32,11 +32,13 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -52,6 +54,9 @@ class AiIntegrationTest {
 
 	@Autowired
 	AiClient ai;
+
+	@Autowired
+	AiJobs jobs;
 
 	@Autowired
 	JdbcTemplate jdbc;
@@ -162,7 +167,7 @@ class AiIntegrationTest {
 		given(this.ai.improve(any())).willReturn(new Suggestion("Streetlight out on School Lane",
 				"The streetlight outside the school has been off for a week.", List.of("Pole number?"), "fake:model"));
 		given(this.ai.ask("Which department handles streetlights?")).willReturn(new Answer(
-				"Street Lighting & Electrical [1].", true, List.of(new AiClient.Source("Streetlights", "directory")),
+				"Street Lighting & Electrical.", true, List.of(new AiClient.Source("Streetlights", "directory")),
 				"fake:model"));
 		Session citizen = this.api.citizen();
 
@@ -186,7 +191,7 @@ class AiIntegrationTest {
 		given(this.ai.searchComplaints(anyString(), any(), any(), eq(20)))
 			.willReturn(List.of(new ComplaintHit(someoneElses, 0.9), new ComplaintHit(own, 0.8)));
 
-		this.api.get("/api/search/complaints?q=dark street", citizen)
+		this.api.get("/api/search/complaints?q=  dark street ", citizen)
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(1)))
 			.andExpect(jsonPath("$[0].complaint.id").value(own))
@@ -195,10 +200,34 @@ class AiIntegrationTest {
 	}
 
 	@Test
+	void textIsTrimmedBeforeItsLengthIsCheckedSoTheAiServiceNeverRejectsIt() throws Exception {
+		Session citizen = this.api.citizen();
+
+		this.api.post("/api/assistant/ask", citizen, "{\"question\": \"a         \"}").andExpect(status().isBadRequest());
+		this.api.post("/api/ai/write", citizen, "{\"description\": \"pothole              \"}")
+			.andExpect(status().isBadRequest());
+		this.api.get("/api/search/knowledge?q=a   ", citizen).andExpect(status().isBadRequest());
+		this.api.get("/api/search/complaints?q=a   ", citizen).andExpect(status().isBadRequest());
+
+		verify(this.ai, never()).ask(anyString());
+		verify(this.ai, never()).improve(any());
+		verify(this.ai, never()).searchKnowledge(anyString(), anyInt());
+		verify(this.ai, never()).searchComplaints(anyString(), any(), any(), anyInt());
+	}
+
+	@Test
 	void changingDepartmentsRefreshesTheKnowledgeBase() throws Exception {
 		this.api.post("/api/admin/departments", this.admin, "{\"name\": \"%s\"}".formatted(TestApi.unique("Parks")))
 			.andExpect(status().isCreated());
 		verify(this.ai, timeout(WAIT.toMillis())).syncKnowledge();
+	}
+
+	@Test
+	void startupLoadsTheKnowledgeBaseOnceTheTablesExist() {
+		// On a new database the AI service starts before the migrations run, so its own first sync finds no tables.
+		this.jobs.resumeUnfinished();
+
+		verify(this.ai, timeout(WAIT.toMillis()).atLeastOnce()).syncKnowledge();
 	}
 
 	@Test

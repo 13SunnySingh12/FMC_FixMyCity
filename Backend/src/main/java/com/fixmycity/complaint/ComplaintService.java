@@ -155,9 +155,9 @@ public class ComplaintService {
 			throw ApiException.badRequest("Attach at least one image.");
 		}
 		List<ImageFile> images = files.stream().map(ImageFile::of).toList();
-		long existing = this.attachments.countByComplaintIdAndKind(complaint.getId(), Attachment.Kind.RESOLUTION_PROOF);
-		if (existing + images.size() > MAX_PROOFS) {
-			throw ApiException.badRequest("A complaint can have at most " + MAX_PROOFS + " resolution-proof images.");
+		if (images.size() > round(complaint.getId()).proofsRemaining()) {
+			throw ApiException.badRequest(
+					"A round of work can take at most " + MAX_PROOFS + " resolution-proof images.");
 		}
 		User officer = this.users.getReferenceById(actor.id());
 		images.forEach((image) -> store(complaint, Attachment.Kind.RESOLUTION_PROOF, image, officer));
@@ -169,7 +169,7 @@ public class ComplaintService {
 	public ComplaintDetail resolve(Long id, AuthUser actor, String note) {
 		Complaint complaint = visible(id, actor);
 		complaint.requireStatus("Start work on the complaint before resolving it.", ComplaintStatus.IN_PROGRESS);
-		if (!evidenceForCurrentRound(complaint.getId())) {
+		if (!round(complaint.getId()).hasEvidence()) {
 			throw ApiException.conflict(
 					"Add an investigation note and upload resolution proof for this round of work before resolving.");
 		}
@@ -203,6 +203,10 @@ public class ComplaintService {
 		}
 		else {
 			Department department = this.departments.department(departmentId);
+			Department current = complaint.getDepartment();
+			if (previous == null && current != null && current.getId().equals(department.getId())) {
+				throw ApiException.badRequest("The complaint is already waiting in this department's queue.");
+			}
 			complaint.moveTo(department);
 			entry = "Moved to " + department.getName() + "; awaiting officer assignment";
 		}
@@ -296,13 +300,17 @@ public class ComplaintService {
 		boolean allowed = switch (actor.role()) {
 			case ADMIN -> true;
 			case CITIZEN -> complaint.getCitizen().getId().equals(actor.id());
-			case OFFICER -> complaint.getAssignedOfficer() != null
-					&& complaint.getAssignedOfficer().getId().equals(actor.id());
+			case OFFICER -> assignedTo(complaint, actor);
 		};
 		if (!allowed) {
 			throw ApiException.notFound("Complaint");
 		}
 		return complaint;
+	}
+
+	private static boolean assignedTo(Complaint complaint, AuthUser actor) {
+		User officer = complaint.getAssignedOfficer();
+		return officer != null && officer.getId().equals(actor.id());
 	}
 
 	private void record(Complaint complaint, String note, User actor) {
@@ -316,36 +324,54 @@ public class ComplaintService {
 	}
 
 	/**
-	 * FMC requires officers to record their work before resolving. Evidence counts only if added since the latest
-	 * (re)assignment, so a reopened complaint cannot be re-resolved with the old proof.
+	 * The current round of work: everything since the latest (re)assignment. FMC requires officers to record their
+	 * work before resolving, and both that evidence and the proof limit count per round, so a reopened or reassigned
+	 * complaint needs new notes and proof and always has room for them.
 	 */
-	private boolean evidenceForCurrentRound(Long complaintId) {
-		Instant roundStart = this.history.findByComplaintIdOrderByCreatedAtAscIdAsc(complaintId)
-			.stream()
-			.filter((entry) -> entry.getStatus() == ComplaintStatus.ASSIGNED)
-			.map(StatusHistory::getCreatedAt)
-			.max(Comparator.naturalOrder())
-			.orElse(Instant.EPOCH);
-		boolean note = this.notes.findByComplaintIdOrderByCreatedAtAscIdAsc(complaintId)
-			.stream()
-			.anyMatch((n) -> !n.getCreatedAt().isBefore(roundStart));
-		boolean proof = this.attachments.findByComplaintIdOrderByIdAsc(complaintId)
-			.stream()
-			.anyMatch((a) -> a.getKind() == Attachment.Kind.RESOLUTION_PROOF && !a.getCreatedAt().isBefore(roundStart));
-		return note && proof;
+	private record Round(boolean noted, int proofs) {
+
+		static Round of(List<StatusHistory> timeline, List<ComplaintNote> notes, List<Attachment> files) {
+			Instant start = timeline.stream()
+				.filter((entry) -> entry.getStatus() == ComplaintStatus.ASSIGNED)
+				.map(StatusHistory::getCreatedAt)
+				.max(Comparator.naturalOrder())
+				.orElse(Instant.EPOCH);
+			boolean noted = notes.stream().anyMatch((note) -> !note.getCreatedAt().isBefore(start));
+			long proofs = files.stream()
+				.filter((file) -> file.getKind() == Attachment.Kind.RESOLUTION_PROOF
+						&& !file.getCreatedAt().isBefore(start))
+				.count();
+			return new Round(noted, (int) proofs);
+		}
+
+		boolean hasEvidence() {
+			return this.noted && this.proofs > 0;
+		}
+
+		int proofsRemaining() {
+			return Math.max(0, MAX_PROOFS - this.proofs);
+		}
+
+	}
+
+	private Round round(Long complaintId) {
+		return Round.of(this.history.findByComplaintIdOrderByCreatedAtAscIdAsc(complaintId),
+				this.notes.findByComplaintIdOrderByCreatedAtAscIdAsc(complaintId),
+				this.attachments.findByComplaintIdOrderByIdAsc(complaintId));
 	}
 
 	private ComplaintDetail detail(Complaint c, AuthUser actor) {
 		List<Attachment> files = this.attachments.findByComplaintIdOrderByIdAsc(c.getId());
+		List<StatusHistory> entries = this.history.findByComplaintIdOrderByCreatedAtAscIdAsc(c.getId());
+		List<ComplaintNote> written = this.notes.findByComplaintIdOrderByCreatedAtAscIdAsc(c.getId());
+		Round round = Round.of(entries, written, files);
 		List<Image> images = images(files, Attachment.Kind.COMPLAINT_IMAGE);
 		List<Image> proofs = images(files, Attachment.Kind.RESOLUTION_PROOF);
-		List<TimelineEntry> timeline = this.history.findByComplaintIdOrderByCreatedAtAscIdAsc(c.getId())
-			.stream()
+		List<TimelineEntry> timeline = entries.stream()
 			.map((h) -> new TimelineEntry(h.getStatus(), h.getNote(), h.getChangedBy().getName(),
 					h.getChangedBy().getRole(), h.getCreatedAt()))
 			.toList();
-		List<Note> noteViews = this.notes.findByComplaintIdOrderByCreatedAtAscIdAsc(c.getId())
-			.stream()
+		List<Note> noteViews = written.stream()
 			.map((n) -> new Note(n.getAuthor().getName(), n.getBody(), n.getCreatedAt()))
 			.toList();
 		FeedbackView feedbackView = this.feedback.findById(c.getId())
@@ -360,8 +386,8 @@ public class ComplaintService {
 				department == null ? null : department.getName(), c.getStatus(), c.getPriority(),
 				new Person(citizen.getId(), citizen.getName(), staff ? citizen.getPhone() : null),
 				officer == null ? null : new Person(officer.getId(), officer.getName(), null), ai(c, actor), images,
-				proofs, timeline, noteViews, feedbackView, actions(c, actor, proofs.size()), c.getCreatedAt(),
-				c.getUpdatedAt());
+				proofs, timeline, noteViews, feedbackView, actions(c, actor, round), round.proofsRemaining(),
+				c.getCreatedAt(), c.getUpdatedAt());
 	}
 
 	private List<Image> images(List<Attachment> files, Attachment.Kind kind) {
@@ -382,8 +408,12 @@ public class ComplaintService {
 				actor.is(Role.ADMIN) ? c.getAiError() : null);
 	}
 
-	private List<String> actions(Complaint c, AuthUser actor, int proofCount) {
+	private static List<String> actions(Complaint c, AuthUser actor, Round round) {
 		List<String> actions = new ArrayList<>();
+		// An officer who has just handed the complaint over still receives it in the answer, but no longer holds it.
+		if (actor.is(Role.OFFICER) && !assignedTo(c, actor)) {
+			return actions;
+		}
 		ComplaintStatus status = c.getStatus();
 		switch (actor.role()) {
 			case CITIZEN -> {
@@ -401,10 +431,10 @@ public class ComplaintService {
 					actions.add("START");
 				}
 				if (status == ComplaintStatus.IN_PROGRESS) {
-					if (proofCount < MAX_PROOFS) {
+					if (round.proofsRemaining() > 0) {
 						actions.add("UPLOAD_PROOF");
 					}
-					if (evidenceForCurrentRound(c.getId())) {
+					if (round.hasEvidence()) {
 						actions.add("RESOLVE");
 					}
 				}

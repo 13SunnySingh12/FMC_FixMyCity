@@ -52,11 +52,11 @@ public class StorageService {
 			throw new IllegalStateException(
 					"B2 storage is not configured: set B2_ENDPOINT, B2_BUCKET, B2_KEY_ID and B2_APPLICATION_KEY");
 		}
-		URI uri = URI.create("https://" + endpoint.strip().replaceFirst("^https?://", "").replaceAll("/+$", ""));
-		Matcher host = B2_HOST.matcher(uri.getHost());
+		Matcher host = B2_HOST.matcher(endpoint.strip().replaceFirst("^https?://", "").replaceAll("/+$", ""));
 		if (!host.matches()) {
 			throw new IllegalStateException("B2_ENDPOINT must look like s3.<region>.backblazeb2.com");
 		}
+		URI uri = URI.create("https://" + host.group());
 		Region region = Region.of(host.group(1));
 		var credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(keyId, applicationKey));
 		this.s3 = S3Client.builder()

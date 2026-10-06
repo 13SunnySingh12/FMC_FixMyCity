@@ -11,6 +11,7 @@ import com.fixmycity.ai.AiClient.Suggestion;
 import com.fixmycity.auth.AuthUser;
 import com.fixmycity.common.ApiException;
 import com.fixmycity.common.RateLimit;
+import com.fixmycity.common.Text;
 import com.fixmycity.complaint.ComplaintRepository;
 import com.fixmycity.complaint.ComplaintService;
 import com.fixmycity.complaint.ComplaintSummary;
@@ -19,10 +20,13 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,9 +40,22 @@ class AiController {
 
 	record WriteRequest(@Size(max = 150) String title, @NotBlank @Size(min = 10, max = 5000) String description,
 			@Size(max = 300) String location) {
+
+		// Lengths are checked on the text the AI service receives, not on surrounding whitespace.
+		WriteRequest {
+			title = Text.blankToNull(title);
+			description = Text.blankToNull(description);
+			location = Text.blankToNull(location);
+		}
+
 	}
 
 	record AskRequest(@NotBlank @Size(min = 3, max = 500) String question) {
+
+		AskRequest {
+			question = Text.blankToNull(question);
+		}
+
 	}
 
 	record ComplaintResult(ComplaintSummary complaint, double score) {
@@ -62,25 +79,31 @@ class AiController {
 		this.complaintRepository = complaintRepository;
 	}
 
+	/** Search text is trimmed before its length is checked, like the request bodies above. */
+	@InitBinder
+	void trimParameters(WebDataBinder binder) {
+		binder.registerCustomEditor(String.class, new StringTrimmerEditor(false));
+	}
+
 	@PostMapping("/api/ai/write")
 	@PreAuthorize("hasRole('CITIZEN')")
 	Suggestion write(@Valid @RequestBody WriteRequest request, @AuthenticationPrincipal AuthUser user) {
 		this.rateLimit.check(user.id());
-		return this.ai.improve(new AiClient.WriteRequest(orEmpty(request.title()), request.description().strip(),
+		return this.ai.improve(new AiClient.WriteRequest(orEmpty(request.title()), request.description(),
 				orEmpty(request.location())));
 	}
 
 	@PostMapping("/api/assistant/ask")
 	Answer ask(@Valid @RequestBody AskRequest request, @AuthenticationPrincipal AuthUser user) {
 		this.rateLimit.check(user.id());
-		return this.ai.ask(request.question().strip());
+		return this.ai.ask(request.question());
 	}
 
 	@GetMapping("/api/search/complaints")
 	List<ComplaintResult> searchComplaints(@RequestParam @NotBlank @Size(min = 2, max = 300) String q,
 			@AuthenticationPrincipal AuthUser user) {
 		this.rateLimit.check(user.id());
-		List<ComplaintHit> hits = this.ai.searchComplaints(q.strip(), user.is(Role.CITIZEN) ? user.id() : null,
+		List<ComplaintHit> hits = this.ai.searchComplaints(q, user.is(Role.CITIZEN) ? user.id() : null,
 				user.is(Role.OFFICER) ? user.id() : null, 20);
 		// The AI service already filtered by scope; the backend re-checks visibility before returning anything.
 		Map<Long, ComplaintSummary> visible = this.complaints
@@ -95,7 +118,7 @@ class AiController {
 	List<KnowledgeHit> searchKnowledge(@RequestParam @NotBlank @Size(min = 2, max = 300) String q,
 			@AuthenticationPrincipal AuthUser user) {
 		this.rateLimit.check(user.id());
-		return this.ai.searchKnowledge(q.strip(), 5);
+		return this.ai.searchKnowledge(q, 5);
 	}
 
 	@PostMapping("/api/complaints/{id}/analysis/retry")
@@ -109,7 +132,7 @@ class AiController {
 	}
 
 	private static String orEmpty(String value) {
-		return (value == null) ? "" : value.strip();
+		return (value == null) ? "" : value;
 	}
 
 }

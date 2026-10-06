@@ -75,6 +75,10 @@ public class AiJobs {
 
 	@TransactionalEventListener
 	void onReferenceDataChanged(ReferenceDataChanged event) {
+		refreshKnowledge();
+	}
+
+	private void refreshKnowledge() {
 		this.executor.execute(() -> {
 			try {
 				this.ai.syncKnowledge();
@@ -87,6 +91,8 @@ public class AiJobs {
 
 	@EventListener(ApplicationReadyEvent.class)
 	void resumeUnfinished() {
+		// The AI service may have started before the migrations created its tables (first run on a new database).
+		refreshKnowledge();
 		this.jdbc.update("UPDATE complaints SET ai_status = 'PENDING' WHERE ai_status = 'PROCESSING'");
 		List<Long> pending = this.jdbc.queryForList("SELECT id FROM complaints WHERE ai_status = 'PENDING' ORDER BY id",
 				Long.class);

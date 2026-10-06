@@ -8,6 +8,4 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
 	List<Attachment> findByComplaintIdOrderByIdAsc(Long complaintId);
 
-	long countByComplaintIdAndKind(Long complaintId, Attachment.Kind kind);
-
 }

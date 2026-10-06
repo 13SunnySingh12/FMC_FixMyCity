@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.fixmycity.auth.AuthUser;
 import com.fixmycity.common.PageResponse;
+import com.fixmycity.common.Text;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -37,6 +38,14 @@ class ComplaintController {
 	record SubmitRequest(@NotBlank @Size(min = 5, max = 150) String title,
 			@NotBlank @Size(min = 20, max = 5000) String description, @NotBlank @Size(max = 300) String location,
 			@NotNull Long categoryId, UUID requestId) {
+
+		// Lengths are checked on the text as it will be stored, not on surrounding whitespace.
+		SubmitRequest {
+			title = Text.blankToNull(title);
+			description = Text.blankToNull(description);
+			location = Text.blankToNull(location);
+		}
+
 	}
 
 	record NoteRequest(@NotBlank @Size(max = 2000) String body) {
@@ -46,6 +55,11 @@ class ComplaintController {
 	}
 
 	record ReopenRequest(@NotBlank @Size(min = 10, max = 500) String reason) {
+
+		ReopenRequest {
+			reason = Text.blankToNull(reason);
+		}
+
 	}
 
 	record FeedbackRequest(@NotNull @Min(1) @Max(5) Integer rating, @Size(max = 1000) String comment) {

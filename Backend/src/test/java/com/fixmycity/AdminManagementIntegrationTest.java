@@ -71,7 +71,8 @@ class AdminManagementIntegrationTest {
 			.andExpect(jsonPath("$.departmentName").value("Water Supply"));
 		this.api.get("/api/officers?departmentId=" + waterSupply, officer)
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[*].id", hasItem((int) officer.id())));
+			.andExpect(jsonPath("$[*].id", hasItem((int) officer.id())))
+			.andExpect(jsonPath("$[0].email").isNotEmpty()); // tells namesakes apart in the picker
 		this.api.get("/api/officers", this.api.citizen()).andExpect(status().isForbidden());
 	}
 

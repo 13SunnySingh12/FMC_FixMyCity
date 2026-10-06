@@ -163,6 +163,7 @@ public class Complaint {
 	void reopen() {
 		requireStatus("Only resolved complaints can be reopened.", ComplaintStatus.RESOLVED);
 		this.status = ComplaintStatus.ASSIGNED;
+		this.department = this.assignedOfficer.getDepartment(); // the officer may have changed department since
 	}
 
 	void close() {

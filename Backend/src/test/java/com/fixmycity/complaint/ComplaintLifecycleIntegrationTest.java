@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -190,6 +191,107 @@ class ComplaintLifecycleIntegrationTest {
 	}
 
 	@Test
+	void reopenedComplaintFollowsItsOfficersCurrentDepartment() throws Exception {
+		Session citizen = this.api.citizen();
+		Session officer = this.api.officer(this.roadsDepartment);
+		long id = TestApi.id(submit(citizen, UUID.randomUUID(), null));
+		String path = "/api/complaints/" + id;
+		assign(id, this.admin, officer.id());
+		this.api.post(path + "/start", officer, "{}");
+		this.api.post(path + "/notes", officer, "{\"body\": \"Filled the pothole.\"}");
+		uploadProof(id, officer);
+		this.api.post(path + "/resolve", officer, "{}").andExpect(jsonPath("$.status").value("RESOLVED"));
+
+		long drainage = this.api.departmentId("Drainage & Sewerage");
+		this.api.patch("/api/admin/users/" + officer.id(), this.admin, "{\"departmentId\": %d}".formatted(drainage))
+			.andExpect(status().isOk());
+
+		this.api.post(path + "/reopen", citizen, "{\"reason\": \"The pothole is back after the rain.\"}")
+			.andExpect(jsonPath("$.status").value("ASSIGNED"))
+			.andExpect(jsonPath("$.assignedOfficer.id").value(officer.id()))
+			.andExpect(jsonPath("$.departmentName").value("Drainage & Sewerage"));
+	}
+
+	@Test
+	void reopenedComplaintWaitsInTheQueueWhenItsOfficerIsNoLongerActive() throws Exception {
+		Session citizen = this.api.citizen();
+		Session officer = this.api.officer(this.roadsDepartment);
+		long id = TestApi.id(submit(citizen, UUID.randomUUID(), null));
+		String path = "/api/complaints/" + id;
+		assign(id, this.admin, officer.id());
+		this.api.post(path + "/start", officer, "{}");
+		this.api.post(path + "/notes", officer, "{\"body\": \"Filled the pothole.\"}");
+		uploadProof(id, officer);
+		this.api.post(path + "/resolve", officer, "{}").andExpect(jsonPath("$.status").value("RESOLVED"));
+		this.api.patch("/api/admin/users/" + officer.id(), this.admin, "{\"active\": false}").andExpect(status().isOk());
+
+		this.api.post(path + "/reopen", citizen, "{\"reason\": \"The pothole is back after the rain.\"}")
+			.andExpect(jsonPath("$.status").value("SUBMITTED"))
+			.andExpect(jsonPath("$.assignedOfficer").doesNotExist())
+			.andExpect(jsonPath("$.departmentName").value("Roads & Public Works"))
+			.andExpect(jsonPath("$.timeline[-1].note", containsString("no longer active")));
+		this.api.get(path, this.admin).andExpect(jsonPath("$.actions", hasItem("ASSIGN")));
+	}
+
+	@Test
+	void eachRoundOfWorkHasRoomForItsOwnProof() throws Exception {
+		Session citizen = this.api.citizen();
+		Session officer = this.api.officer(this.roadsDepartment);
+		long id = TestApi.id(submit(citizen, UUID.randomUUID(), null));
+		String path = "/api/complaints/" + id;
+		assign(id, this.admin, officer.id());
+		this.api.post(path + "/start", officer, "{}");
+		this.api.post(path + "/notes", officer, "{\"body\": \"Filled the pothole.\"}");
+		uploadProofs(id, officer, 5).andExpect(status().isOk())
+			.andExpect(jsonPath("$.proofsRemaining").value(0))
+			.andExpect(jsonPath("$.actions", not(hasItem("UPLOAD_PROOF"))));
+		uploadProofs(id, officer, 1).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("A round of work can take at most 5 resolution-proof images."));
+		this.api.post(path + "/resolve", officer, "{}").andExpect(jsonPath("$.status").value("RESOLVED"));
+
+		// The first round used every slot; the reopened complaint must still be resolvable.
+		this.api.post(path + "/reopen", citizen, "{\"reason\": \"The pothole is back after the rain.\"}");
+		this.api.post(path + "/start", officer, "{}")
+			.andExpect(jsonPath("$.proofsRemaining").value(5))
+			.andExpect(jsonPath("$.actions", hasItem("UPLOAD_PROOF")));
+		this.api.post(path + "/notes", officer, "{\"body\": \"Relaid the patch with hot-mix.\"}");
+		uploadProofs(id, officer, 1).andExpect(status().isOk()).andExpect(jsonPath("$.proofs", hasSize(6)));
+		this.api.post(path + "/resolve", officer, "{}").andExpect(jsonPath("$.status").value("RESOLVED"));
+	}
+
+	@Test
+	void lengthsAreCheckedAfterTrimming() throws Exception {
+		Session citizen = this.api.citizen();
+		MockMultipartHttpServletRequestBuilder request = MockMvcRequestBuilders.multipart("/api/complaints");
+		request.param("title", "  ab          ")
+			.param("description", "too short" + " ".repeat(30))
+			.param("location", "MG Road")
+			.param("categoryId", String.valueOf(this.roadsCategory));
+
+		this.api.perform(request, citizen)
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors.title").exists())
+			.andExpect(jsonPath("$.errors.description").exists());
+		this.api.get("/api/complaints", citizen).andExpect(jsonPath("$.totalItems").value(0));
+	}
+
+	@Test
+	void sendingAWaitingComplaintToItsOwnQueueIsRejected() throws Exception {
+		long id = TestApi.id(submit(this.api.citizen(), UUID.randomUUID(), null));
+		String path = "/api/complaints/" + id;
+
+		this.api.post(path + "/assignment", this.admin, "{\"departmentId\": %d}".formatted(this.roadsDepartment))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("The complaint is already waiting in this department's queue."));
+		this.api.get(path, this.admin).andExpect(jsonPath("$.timeline", hasSize(1)));
+
+		long drainage = this.api.departmentId("Drainage & Sewerage");
+		this.api.post(path + "/assignment", this.admin, "{\"departmentId\": %d}".formatted(drainage))
+			.andExpect(jsonPath("$.status").value("SUBMITTED"))
+			.andExpect(jsonPath("$.departmentName").value("Drainage & Sewerage"));
+	}
+
+	@Test
 	void malformedIdsGetAPlainAnswer() throws Exception {
 		this.api.get("/api/complaints/not-a-number", this.api.citizen())
 			.andExpect(status().isBadRequest())
@@ -213,7 +315,8 @@ class ComplaintLifecycleIntegrationTest {
 				"{\"officerId\": %d, \"note\": \"Drain collapse, not a road issue\"}".formatted(second.id()))
 			.andExpect(jsonPath("$.status").value("ASSIGNED"))
 			.andExpect(jsonPath("$.departmentName").value("Drainage & Sewerage"))
-			.andExpect(jsonPath("$.timeline[-1].note", containsString("Reassigned from")));
+			.andExpect(jsonPath("$.timeline[-1].note", containsString("Reassigned from")))
+			.andExpect(jsonPath("$.actions", empty())); // handed over: nothing left for the first officer to do
 		this.api.get(path, first).andExpect(status().isNotFound());
 
 		this.api.post(path + "/assignment", second, "{\"departmentId\": %d}".formatted(this.roadsDepartment))
@@ -275,8 +378,16 @@ class ComplaintLifecycleIntegrationTest {
 	}
 
 	private ResultActions uploadProof(long id, Session officer) throws Exception {
-		return this.api.perform(MockMvcRequestBuilders.multipart("/api/complaints/" + id + "/proofs")
-			.file(new MockMultipartFile("images", "after.png", "image/png", PNG)), officer);
+		return uploadProofs(id, officer, 1);
+	}
+
+	private ResultActions uploadProofs(long id, Session officer, int count) throws Exception {
+		MockMultipartHttpServletRequestBuilder request = MockMvcRequestBuilders
+			.multipart("/api/complaints/" + id + "/proofs");
+		for (int i = 0; i < count; i++) {
+			request.file(new MockMultipartFile("images", "after-" + i + ".png", "image/png", PNG));
+		}
+		return this.api.perform(request, officer);
 	}
 
 	private static MockMultipartFile jpeg(String name) {

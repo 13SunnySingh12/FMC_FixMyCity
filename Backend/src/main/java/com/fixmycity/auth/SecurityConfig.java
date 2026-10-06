@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.fixmycity.user.User;
 import com.fixmycity.user.UserRepository;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.Cookie;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -51,6 +52,9 @@ class SecurityConfig {
 		http.csrf(AbstractHttpConfigurer::disable) // stateless API; the token cookie is SameSite=Strict
 			.sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests((auth) -> auth
+				// The container's error page must answer with the real status (e.g. 400 for a malformed URL),
+				// not with 401, which the browser would take for an ended session.
+				.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 				.requestMatchers(HttpMethod.POST, PUBLIC_AUTH_PATHS.toArray(String[]::new)).permitAll()
 				.requestMatchers("/actuator/health/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
