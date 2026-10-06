@@ -9,6 +9,10 @@ services:
       AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
+      # Optional model overrides: passed through when set in .env, otherwise the service keeps its defaults.
+      GROQ_MODEL:
+      GEMINI_MODELS:
+      GEMINI_EMBEDDING_MODEL:
     restart: unless-stopped
 
   backend:
